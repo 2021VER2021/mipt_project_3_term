@@ -3,8 +3,8 @@
 #include <cmath>
 #include <array>
 
-int const n1 = 800;  //  rename?
-int const n2 = 400;
+int const n1 = 400;  //  rename?
+int const n2 = 200;
 double const d = 1;  // params of FOV and scaling screen // how does it work actually??
 double const w = d;  // params of FOV and scaling screen
 double const h = (double)n2/n1 * d;  // params of FOV and scaling screen
@@ -61,9 +61,8 @@ double abs(VEC v1) {
 /// Class for collecting all pixels data, maybe useless
 /// </summary>
 class Picture {
-private:
-    COL* arr;
 public:
+    COL* arr;
     void set_color(int i, int j, COL c) {
         arr[i + j * n1] = c;
     }
@@ -148,7 +147,10 @@ public:
         return *intensity;
     }
 };
-
+/// <summary>
+/// GenericObject Interface for every object you can visualise 
+/// RAII done
+/// </summary>
 class GenericObject {
 protected:
     COL* color;
@@ -171,6 +173,14 @@ public:
         delete reflective;
         delete specular;
     }
+    /// <summary>
+    /// Function calculates closest intercection for ray (actually line) and object 
+    /// </summary>
+    /// <param name="O - coord center in affine space"></param> 
+    /// <param name="V - vector for the Intercecting ray"></param> 
+    /// <param name="t_min - minimum distance for intercection"></param>
+    /// <param name="t_max - maximum distance for intercection"></param>
+    /// <param name="intersection - function output variable"></param>
     virtual void Intercections(VEC O, VEC V, double t_min, double t_max, double& intersection) = 0;
     virtual VEC get_norm(VEC P) = 0;
     virtual double get_reflective() = 0;
@@ -178,7 +188,7 @@ public:
     virtual COL get_color() = 0;
 };
 
-class SphereObj final : public GenericObject {
+class SphereObj : public GenericObject {
     VEC* center;
     double* radius;
 public:
@@ -277,11 +287,66 @@ public:
     }
 };
 
+class PlaneObj : public GenericObject {
+private:
+    VEC *norm;
+    VEC *param;
+public:
+    PlaneObj(VEC norm, VEC param, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
+        PlaneObj::norm = new VEC; *PlaneObj::norm = norm;
+        PlaneObj::param = new VEC; *PlaneObj::param = param;
+    }
+    PlaneObj(PlaneObj const& t) : PlaneObj(*t.norm, *t.param, *t.color, *t.specular, *t.reflective) {};
+    ~PlaneObj() {
+        delete norm;
+        delete param;
+    }
+
+    PlaneObj& operator = (PlaneObj const& s) {
+        PlaneObj tmp(s);
+        std::swap(this->norm, tmp.norm);
+        std::swap(this->param, tmp.param);
+        std::swap(this->color, tmp.color);
+        std::swap(this->reflective, tmp.reflective);
+        std::swap(this->specular, tmp.specular);
+        return *this;
+    }
+
+    virtual void Intercections(VEC O, VEC V, double t_min, double t_max, double& closest_t) override {
+        double dot = *norm * V;
+        int t1 = positive_inf;
+        closest_t = positive_inf;
+        if (dot != 0) {
+            VEC W = O-*param;
+            double fac = -(*norm * W)/dot;
+            t1 = fac * abs(V);
+        }
+        if ((t1 >= t_min) && (t1 <= t_max)) {
+            closest_t = t1;
+        }
+    }
+
+    virtual VEC get_norm(VEC P) override {
+        return *norm;
+    }
+    virtual COL get_color() override {
+        return *GenericObject::color;
+    }
+    virtual double get_reflective() override {
+        return *GenericObject::reflective;
+    }
+    virtual double get_specular() override {
+        return *GenericObject::specular;
+    }
+};
+
 class Render final {
-    std::vector<GenericObject*> spheres = { new SphereObj({0, -0.2, 8}, 1, RED, -1, 0.95),
-                     new SphereObj({2, 0, 5}, 1, RED),
-                     new SphereObj({0, -5001, 0}, 5000, YELLOW, 10),
-                     new SphereObj({-2, 0, 6}, 1, {116, 66, 200}, 500, 0.1) };
+    std::vector<GenericObject*> spheres = { new SphereObj({-0.7, -0.5, 16}, 1, RED),
+                     new SphereObj({0.7, -0.5, 16}, 1, RED),
+                     new SphereObj({0, 0.6, 16}, 1, YELLOW, 10, 0.1),
+                     new SphereObj({0, 1.7, 16}, 1, {116, 66, 200}, 500, 0.1),
+        new SphereObj({0, 2.2, 16}, 1.1, BLUE, 500, 0.5),
+    new PlaneObj({0, 1, 0}, {0, -3, 10}, {255, 255, 255}, -1, 0)};
 
     //std::vector<GenericObject*> spheres;
     std::vector<LightObj> lights = { LightObj('a', 0.3),

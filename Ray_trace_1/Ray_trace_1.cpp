@@ -6,7 +6,11 @@
 #include "test_module.h"
 //#include "kernel.cu"
 #include <time.h>
+//#include <omp.h>
+//#include <boost/compute.hpp>
+//#include<amp.h>
 
+#define debug
 #define MAX_LOADSTRING 100
 
 // Глобальные переменные:
@@ -151,21 +155,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             HDC hdc = BeginPaint(hWnd, &ps);
             Picture p;
             Render r;
-#ifdef debug
             clock_t start = clock();
-#endif
-            for (int k = 0; k < 1; k++) {
-                VEC O = { 0.0, 0.0, -k };
-                for (int i = 0; i < n1; i++) {
-                    for (int j = 0; j < n2; j++) {
-                        VEC D = { (i - (double)n1 / 2) * (double)w / (double)n1,
-                            -(j - (double)n2 / 2) * (double)h / (double)n2, (double)d };
-                        ///VEC P = D - O;
-                        p.set_color(i, j, r.Trace(O, D, 1, positive_inf, 10));
-                        SetPixel(hdc, i, j, RGB(p.get_color(i, j)[0], p.get_color(i, j)[1], p.get_color(i, j)[2]));
-                    }
-                }
+            VEC O = { 0.0, 0.0, 0.0};
+            //omp_set_num_threads(2);
+//#pragma omp parallel
+ {
+//#pragma omp for
+            for (int k = 0; k < n1 * n2; k++) {
+                int i = k / n2;
+                int j = k % n2;
+                VEC D = { (i - (double)n1 / 2) * (double)w / (double)n1,
+                    -(j - (double)n2 / 2) * (double)h / (double)n2, (double)d };
+                ///VEC P = D - O;
+                p.set_color(i, j, r.Trace(O, D, 1, positive_inf, 1));  // set_color
+                SetPixel(hdc, i, j, RGB(p.get_color(i, j)[0], p.get_color(i, j)[1], p.get_color(i, j)[2]));
             }
+ }
             clock_t end = clock();
             EndPaint(hWnd, &ps);
         }
