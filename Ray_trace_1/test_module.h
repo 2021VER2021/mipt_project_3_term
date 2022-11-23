@@ -3,12 +3,12 @@
 #include <cmath>
 #include <array>
 
-int const n1 = 400;  //  rename?
-int const n2 = 200;
+int const n1 = 800;  //  rename?
+int const n2 = 400;
 double const d = 1;  // params of FOV and scaling screen // how does it work actually??
 double const w = d;  // params of FOV and scaling screen
 double const h = (double)n2/n1 * d;  // params of FOV and scaling screen
-double const positive_inf = 10000000;
+double const positive_inf = 100000000;
 double epsilon = 0.00001;
 using VEC = std::array<double, 3>;
 using COL_t = unsigned char;
@@ -314,12 +314,14 @@ public:
 
     virtual void Intercections(VEC O, VEC V, double t_min, double t_max, double& closest_t) override {
         double dot = *norm * V;
-        int t1 = positive_inf;
+        double t1 = positive_inf;
         closest_t = positive_inf;
-        if (dot != 0) {
+        if (abs(dot) >= epsilon) {
             VEC W = O-*param;
             double fac = -(*norm * W)/dot;
-            t1 = fac * abs(V);
+            if (fac > 0) {
+                t1 = fac;
+            }
         }
         if ((t1 >= t_min) && (t1 <= t_max)) {
             closest_t = t1;
@@ -341,12 +343,12 @@ public:
 };
 
 class Render final {
-    std::vector<GenericObject*> spheres = { new SphereObj({-0.7, -0.5, 16}, 1, RED),
-                     new SphereObj({0.7, -0.5, 16}, 1, RED),
-                     new SphereObj({0, 0.6, 16}, 1, YELLOW, 10, 0.1),
-                     new SphereObj({0, 1.7, 16}, 1, {116, 66, 200}, 500, 0.1),
-        new SphereObj({0, 2.2, 16}, 1.1, BLUE, 500, 0.5),
-    new PlaneObj({0, 1, 0}, {0, -3, 10}, {255, 255, 255}, -1, 0)};
+    std::vector<GenericObject*> spheres = { new SphereObj({-0.7, -0.5, 32}, 1, RED),
+                     new SphereObj({0.7, -0.5, 32}, 1, RED),
+                     new SphereObj({0, 0.6, 32}, 1, YELLOW, 10, 0.2),
+                     new SphereObj({0, 1.7, 32}, 1, {116, 66, 200}, 500, 0.1),
+        new SphereObj({0, 2.2, 32}, 1.1, BLUE, 500, 0.5),
+    new PlaneObj({0, 1, 0}, {0, -3, 10}, {255, 255, 255}, -1, 0.7)};
 
     //std::vector<GenericObject*> spheres;
     std::vector<LightObj> lights = { LightObj('a', 0.3),
@@ -401,7 +403,7 @@ public:
                 GenericObject* shadow_sphere = nullptr;
 
                 // spheres 
-                ClosestIntersection(P, L, 0.001, positive_inf, shadow_sphere, closest_t);
+                ClosestIntersection(P, L, epsilon, positive_inf, shadow_sphere, closest_t);
                 if (shadow_sphere != nullptr) {
                     continue;
                 }
