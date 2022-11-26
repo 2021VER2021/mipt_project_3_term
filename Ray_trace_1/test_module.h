@@ -3,8 +3,8 @@
 #include <cmath>
 #include <array>
 
-int const n1 = 800;  //  rename?
-int const n2 = 400;
+int const n1 = 300;  //  rename?
+int const n2 = 300;
 double const d = 1;  // params of FOV and scaling screen // how does it work actually??
 double const w = d;  // params of FOV and scaling screen
 double const h = (double)n2/n1 * d;  // params of FOV and scaling screen
@@ -53,10 +53,15 @@ COL operator * (double v1, COL v2) {
 COL operator + (COL c1, COL c2) {
     return { static_cast<COL_t>(c1[0] + c2[0]), static_cast<COL_t>(c1[1] + c2[1]), static_cast<COL_t>(c1[2] + c2[2]) };
 }
-double abs(VEC v1) {
+double abs(VEC &v1) {
     double V = v1 * v1;
     return std::sqrt(V);
 }
+VEC cross(VEC &v1, VEC &v2) {
+    VEC V = { v1[1] * v2[2] - v1[2] * v2[1], v2[0] * v1[2] - v1[0] * v2[2], v1[0] * v2[1] - v2[0] * v1[1] };
+    return V;
+}
+
 /// <summary>
 /// Class for collecting all pixels data, maybe useless
 /// </summary>
@@ -75,7 +80,7 @@ public:
 
 /// <summary>
 /// This class for discribe light
-/// RAII done
+/// RAII done, but Inheritance...
 /// </summary>
 class LightObj {
 protected:
@@ -176,12 +181,12 @@ public:
     /// <summary>
     /// Function calculates closest intercection for ray (actually line) and object 
     /// </summary>
-    /// <param name="O - coord center in affine space"></param> 
+    /// <param name="O - camera center in affine space"></param> 
     /// <param name="V - vector for the Intercecting ray"></param> 
     /// <param name="t_min - minimum distance for intercection"></param>
     /// <param name="t_max - maximum distance for intercection"></param>
     /// <param name="intersection - function output variable"></param>
-    virtual void Intercections(VEC O, VEC V, double t_min, double t_max, double& intersection) = 0;
+    virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& intersection) = 0;
     virtual VEC get_norm(VEC P) = 0;
     virtual double get_reflective() = 0;
     virtual double get_specular() = 0;
@@ -241,7 +246,7 @@ public:
         return *this;
     }
 
-    virtual void Intercections(VEC O, VEC V, double t_min, double t_max, double& closest_t) override {
+    virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
         VEC C = *center;
         double r = *radius;
         VEC OC = O - C;
@@ -312,7 +317,7 @@ public:
         return *this;
     }
 
-    virtual void Intercections(VEC O, VEC V, double t_min, double t_max, double& closest_t) override {
+    virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
         double dot = *norm * V;
         double t1 = positive_inf;
         closest_t = positive_inf;
@@ -342,17 +347,91 @@ public:
     }
 };
 
+class TriangleObj : public GenericObject {
+private:
+    VEC* norm;
+    VEC* point_1;  //FIXED
+    VEC* point_2;
+    VEC* point_3;
+public:
+    TriangleObj(VEC normal, VEC Point_1, VEC Point_2, VEC Point_3, COL c, double spec, double refl): GenericObject(c, refl, spec) {
+        norm = new VEC; *norm = normal;
+        point_1 = new VEC; *point_1 = Point_1;
+        point_2 = new VEC; *point_2 = Point_2;
+        point_3 = new VEC; *point_3 = Point_3;
+    }
+    TriangleObj(TriangleObj const& t) : TriangleObj(*t.norm, *t.point_1, *t.point_2, *t.point_3, *t.color, *t.specular, *t.reflective) {};
+    ~TriangleObj() {
+        delete norm;
+        delete point_1;
+        delete point_2;
+        delete point_3;
+    }
+
+    TriangleObj& operator = (TriangleObj const& s) {
+        TriangleObj tmp(s);
+        std::swap(this->norm, tmp.norm);
+        std::swap(this->point_1, tmp.point_1);
+        std::swap(this->point_2, tmp.point_2);
+        std::swap(this->point_3, tmp.point_3);
+        std::swap(this->color, tmp.color);
+        std::swap(this->reflective, tmp.reflective);
+        std::swap(this->specular, tmp.specular);
+        return *this;
+    }
+
+    virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
+        VEC e1 = *point_2 - *point_1;
+        VEC e2 = *point_3 - *point_1;
+        VEC pvec = cross(V, e2);
+        double det = (e1 * pvec);
+        double t = positive_inf;
+        closest_t = positive_inf;
+        if (!(det < epsilon && det > -epsilon)) {
+            double inv_det = 1 / det;
+            VEC tvec = O - *point_1;
+            double u = (tvec * pvec) * inv_det;
+            if (!(u < 0 || u > 1)) {
+                VEC qvec = cross(tvec, e1);
+                double v = (V * qvec) * inv_det;
+                if (!(v < 0 || v + u > 1)) {
+                    t = (e2 * qvec) * inv_det;
+                }
+            }
+        }
+        if ((t >= t_min) && (t <= t_max)) {
+            closest_t = t;
+        }
+    }
+
+    virtual VEC get_norm(VEC P) override {
+        return *norm;
+    }
+    virtual COL get_color() override {
+        return *GenericObject::color;
+    }
+    virtual double get_reflective() override {
+        return *GenericObject::reflective;
+    }
+    virtual double get_specular() override {
+        return *GenericObject::specular;
+    }
+};
+
 class Render final {
-    std::vector<GenericObject*> spheres = { new SphereObj({-0.7, -0.5, 32}, 1, RED),
-                     new SphereObj({0.7, -0.5, 32}, 1, RED),
-                     new SphereObj({0, 0.6, 32}, 1, YELLOW, 10, 0.2),
-                     new SphereObj({0, 1.7, 32}, 1, {116, 66, 200}, 500, 0.1),
-        new SphereObj({0, 2.2, 32}, 1.1, BLUE, 500, 0.5),
-    new PlaneObj({0, 1, 0}, {0, -3, 10}, {255, 255, 255}, -1, 0.7)};
+    std::vector<GenericObject*> spheres = { new SphereObj({-0.7, -0.5, 16}, 1, RED),
+                     new SphereObj({0.7, -0.5, 16}, 1, RED),
+                     new SphereObj({0, 0.6, 16}, 1, YELLOW, 10, 0),
+                     new SphereObj({0, 1.7, 16}, 1, {116, 66, 200}, 500, 0),
+         new SphereObj({0, 2.4, 16}, 1.1, BLUE, 500, 0.5),
+         new PlaneObj({1, 0, -1}, {0, 0, 30}, {255, 255, 255}, -1, 0.9),
+         new PlaneObj({0, 1, 0}, {0, -3, 10}, {255, 255, 255}, -1, 0),
+         new TriangleObj({0, 1, 0}, {-1, 0, 4}, {1, 0, 4}, {0, 1, 5}, {0, 155, 255}, -1, 0) };
 
     //std::vector<GenericObject*> spheres;
     std::vector<LightObj> lights = { LightObj('a', 0.3),
-                                 LightObj({1, 1, -2}, 'd', 0.7) };
+                                     LightObj({0, 1, 0}, 'd', 0.3),
+                                     LightObj({0, 0, 0}, 'p', 0.4)};
 
 public:
     ~Render() { for (int i = 0; i < spheres.size(); i++) { delete spheres[i]; } }
