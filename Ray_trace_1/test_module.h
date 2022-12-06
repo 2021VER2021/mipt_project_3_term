@@ -3,15 +3,16 @@
 #include <cmath>
 #include <array>
 
-int const n1 = 300;  //  rename?
-int const n2 = 300;
+int n1 = 1024;  //  rename?
+int n2 = 512;
+int pixel = 16;
 double const d = 1;  // params of FOV and scaling screen // how does it work actually??
 double const w = d;  // params of FOV and scaling screen
 double const h = (double)n2/n1 * d;  // params of FOV and scaling screen
 double const positive_inf = 100000000;
 double epsilon = 0.00001;
 using VEC = std::array<double, 3>;
-using COL_t = unsigned char;
+using COL_t = BYTE;
 using COL = std::array<COL_t, 3>;
 using MATR = std::array<VEC, 3>;
 
@@ -68,10 +69,10 @@ VEC cross(VEC &v1, VEC &v2) {
 class Picture {
 public:
     COL* arr;
-    void set_color(int i, int j, COL c) {
+    void set_color(int& i, int& j, COL& c) {
         arr[i + j * n1] = c;
     }
-    COL get_color(int i, int j) {
+    COL get_color(int& i, int& j) {
         return arr[i + j * n1];
     }
     Picture() { arr = new COL[n1 * n2]; }
@@ -419,19 +420,19 @@ public:
 };
 
 class Render final {
-    std::vector<GenericObject*> spheres = { new SphereObj({-0.7, -0.5, 16}, 1, RED),
-                     new SphereObj({0.7, -0.5, 16}, 1, RED),
-                     new SphereObj({0, 0.6, 16}, 1, YELLOW, 10, 0),
-                     new SphereObj({0, 1.7, 16}, 1, {116, 66, 200}, 500, 0),
-         new SphereObj({0, 2.4, 16}, 1.1, BLUE, 500, 0.5),
-         new PlaneObj({1, 0, -1}, {0, 0, 30}, {255, 255, 255}, -1, 0.9),
-         new PlaneObj({0, 1, 0}, {0, -3, 10}, {255, 255, 255}, -1, 0),
-         new TriangleObj({0, 1, 0}, {-1, 0, 4}, {1, 0, 4}, {0, 1, 5}, {0, 155, 255}, -1, 0) };
+    std::vector<GenericObject*> spheres = 
+    {
+         new SphereObj({0, 0, 15}, 2, BLUE, 500, 0.2),
+         new SphereObj({4, -2, 20}, 1.5, RED, 100, 0),
+         new PlaneObj({0, 1, 0}, {0, -3, 10}, {255, 255, 255}, 1, 0)
+    };
 
     //std::vector<GenericObject*> spheres;
-    std::vector<LightObj> lights = { LightObj('a', 0.3),
-                                     LightObj({0, 1, 0}, 'd', 0.3),
-                                     LightObj({0, 0, 0}, 'p', 0.4)};
+    std::vector<LightObj> lights = {
+        LightObj('a', 0.3),
+        LightObj({1, 1, -2}, 'd', 0.7)
+    
+    };
 
 public:
     ~Render() { for (int i = 0; i < spheres.size(); i++) { delete spheres[i]; } }
@@ -451,7 +452,6 @@ public:
         return V;
     }
     void ClosestIntersection(VEC O, VEC V, double t_min, double t_max, GenericObject*& closest_sphere, double& closest_t) {
-        // spheres
         for (int j = 0; j < spheres.size(); j++) {
             auto Sphere = spheres[j];
             double t;
@@ -461,35 +461,46 @@ public:
                 closest_sphere = (spheres[j]);
             }
         }
-        // more code here to intersect other objects? or something
     }
-    double ComputeLightDop(VEC P, VEC N, VEC V, double s) {
+
+    /// <summary>
+    /// </summary>
+    /// <param name="P - the intersection point of the ray and the object"></param>
+    /// <param name="N - normal for the surface in the point P"></param>
+    /// <param name="V - vector from the P to the source of ray (point O)"></param>
+    /// <param name="s - specularity of the object (матовость)"></param>
+    /// <returns></returns>
+    double ComputeLight(VEC P, VEC N, VEC V, double s) {
+        // intensity of the initial color, after computing light
         double i = 0.0;
+
+        // lights - vector<LightObj>
         for (int j = 0; j < lights.size(); j++) {
             LightObj Light = lights[j];
             if (Light.get_type() == 'a') {
                 i += Light.get_intensity();
             }
             else {
-                VEC L;
+                VEC L; // vector to the light
                 if (Light.get_type() == 'p') {
                     L = Light.get_d() - P;
                 }
-                else {
+
+                if (Light.get_type() == 'd') {
                     L = Light.get_d();
                 }
-                double closest_t = positive_inf;
-                GenericObject* shadow_sphere = nullptr;
 
-                // spheres 
-                ClosestIntersection(P, L, epsilon, positive_inf, shadow_sphere, closest_t);
-                if (shadow_sphere != nullptr) {
+                double closest_t = positive_inf;  // parameter of the distamce to the shadow_sphere
+                GenericObject* shadow_sphere = nullptr;  // shadow_sphere - object, which will make a shadow
+                ClosestIntersection(P, L, epsilon, positive_inf, shadow_sphere, closest_t); // calculate intersection
+                
+                if (shadow_sphere != nullptr) { // if the shadow_sphere != nullptr, then there is a shadow
                     continue;
                 }
-
+                // if not, then compute light
                 double n_dot_l = N * L;
                 if (n_dot_l > 0) {
-                    if ((abs(N) != 0) && (abs(L) != 0)) {
+                    if ((N*N != 0) && (L*L != 0)) {
                         i += Light.get_intensity() * n_dot_l / abs(N) / abs(L);
                     }
                 }
@@ -497,7 +508,7 @@ public:
                 if (s != -1) {
                     VEC R = ReflectRay(L, N);
                     double r_dot_v = (R * V);
-                    if ((r_dot_v > 0) && (abs(R) != 0) && (abs(V) != 0)) {
+                    if ((r_dot_v > 0) && (R*R != 0) && (V*V != 0)) {
                         i += Light.get_intensity() * std::pow(r_dot_v / (abs(R) * abs(V)), s);
                     }
                 }
@@ -506,6 +517,9 @@ public:
         }
         return i < 1 ? i : 1;
     }
+
+
+
 
 
     COL Trace(VEC O, VEC V, double t_min, double t_max, int depth) {
@@ -524,7 +538,7 @@ public:
 
         if (abs(N) != 0) { N = (1 / abs(N)) * N; }
 
-        COL local_color = ComputeLightDop(P, N, -V, closest_sphere->get_specular()) * closest_sphere->get_color();
+        COL local_color = ComputeLight(P, N, -V, closest_sphere->get_specular()) * closest_sphere->get_color();
 
         double r = closest_sphere->get_reflective();
 

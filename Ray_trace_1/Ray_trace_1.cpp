@@ -6,7 +6,7 @@
 #include "test_module.h"
 //#include "kernel.cu"
 #include <time.h>
-//#include <omp.h>
+#include <omp.h>
 //#include <boost/compute.hpp>
 //#include<amp.h>
 
@@ -17,7 +17,8 @@
 HINSTANCE hInst;                                // текущий экземпляр
 WCHAR szTitle[MAX_LOADSTRING];                  // Текст строки заголовка
 WCHAR szWindowClass[MAX_LOADSTRING];            // имя класса главного окна
-
+Render r;                                       // Рендер
+double p = 0;
 // Отправить объявления функций, включенных в этот модуль кода:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -62,7 +63,64 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     return (int) msg.wParam;
 }
 
+void Draw(HWND hWnd) {
+    PAINTSTRUCT ps;
+    HDC hdc = BeginPaint(hWnd, &ps);
+    RECT rect;
+    GetClientRect(hWnd, &rect);
+    n1 = rect.right - rect.right % pixel + pixel;
+    n2 = rect.bottom - rect.bottom % pixel + pixel;
+    auto im = new RGBQUAD[n1 * n2];
 
+    HDC hmdc = CreateCompatibleDC(hdc);
+    HBITMAP bit = CreateCompatibleBitmap(hdc, n1, n2);
+    SelectObject(hmdc, bit);
+
+    /*
+    BITMAPINFO bif;
+    ZeroMemory(&bif, sizeof(BITMAPINFO));
+    bif.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bif.bmiHeader.biBitCount = 32;
+    bif.bmiHeader.biWidth = n1;
+    bif.bmiHeader.biHeight = n2;
+    bif.bmiHeader.biPlanes = 1;
+    bif.bmiHeader.biCompression = BI_RGB;
+    bif.bmiHeader.biClrImportant = 0;
+    */
+    clock_t start = clock();
+    COL c; VEC D;
+    int i; int j;
+
+    VEC O = { 0.0, 0.0, p };
+    for (int k = 0; k < n1 * n2; k += pixel) {
+        i = k / n2 * pixel;
+        j = k % n2;
+        D = { (i - (double)n1 / 2) * (double)w / (double)n1,
+               -(j - (double)n2 / 2) * (double)h / (double)n2, (double)d };
+        c = r.Trace(O, D, 1, positive_inf, 1);  // set_color
+        HBRUSH hb = CreateSolidBrush(RGB(c[0], c[1], c[2]));
+        RECT l;  l.left = i; l.top = j; l.right = i + pixel;  l.bottom = j + pixel;
+        FillRect(hmdc, &l, hb);
+        DeleteObject(hb);
+        // SetPixel(hmdc, i, j, RGB(c[0], c[1], c[2]));
+    }
+
+    BitBlt(hdc, 0, 0, n1, n2, hmdc, 0, 0, SRCCOPY);
+
+    //GetDIBits(hmdc, bit, 0, 0, 0, &bif, DIB_RGB_COLORS);
+    //GetDIBits(hmdc, bit, 0, n2, im, &bif, DIB_RGB_COLORS);
+    //SetDIBitsToDevice(hdc, 0, 0, n1, n2, 0, 0, 0, n2, im, &bif, DIB_RGB_COLORS);
+    //SelectObject(hmdc, bit);
+
+    //BitBlt(hdc, 0, 0, n1, n2, hmdc, 0, 0, SRCCOPY);
+
+    clock_t end = clock();
+    DeleteObject(bit);
+    DeleteDC(hmdc);
+    delete[] im;
+
+    EndPaint(hWnd, &ps);
+}
 
 //
 //  ФУНКЦИЯ: MyRegisterClass()
@@ -105,7 +163,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    hInst = hInstance; // Сохранить маркер экземпляра в глобальной переменной
 
    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+      CW_USEDEFAULT, 0, n1, n2, nullptr, nullptr, hInstance, nullptr);
 
    if (!hWnd)
    {
@@ -151,29 +209,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     case WM_PAINT:
         {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            Picture p;
-            Render r;
-            clock_t start = clock();
-            VEC O = { 0.0, 0.0, 0.0};
-            //omp_set_num_threads(2);
-//#pragma omp parallel
- {
-//#pragma omp for
-            for (int k = 0; k < n1 * n2; k++) {
-                int i = k / n2;
-                int j = k % n2;
-                VEC D = { (i - (double)n1 / 2) * (double)w / (double)n1,
-                    -(j - (double)n2 / 2) * (double)h / (double)n2, (double)d };
-                ///VEC P = D - O;
-                p.set_color(i, j, r.Trace(O, D, 1, positive_inf, 1));  // set_color
-                SetPixel(hdc, i, j, RGB(p.get_color(i, j)[0], p.get_color(i, j)[1], p.get_color(i, j)[2]));
-            }
- }
-            clock_t end = clock();
-            EndPaint(hWnd, &ps);
+            Draw(hWnd);
         }
+        break;
+    case WM_KEYDOWN:
+    {
+        WPARAM key = wParam; //Получаем код нажатой клавиши
+        if (key == 65) {
+            p += 1;
+        }
+        if (key == 68) {
+            p -= 1;
+        }
+    }
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
