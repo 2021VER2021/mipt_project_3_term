@@ -1,14 +1,14 @@
 ﻿// Ray_trace_1.cpp : Определяет точку входа для приложения.
-
+#define _SILENCE_AMP_DEPRECATION_WARNINGS
 #include "framework.h"
 #include "Ray_trace_1.h"
 //#include "ray_trace.h"
 #include "test_module.h"
 //#include "kernel.cu"
 #include <time.h>
-#include <omp.h>
+//#include <omp.h>
 //#include <boost/compute.hpp>
-//#include<amp.h>
+#include<amp.h>
 
 #define debug
 #define MAX_LOADSTRING 100
@@ -17,8 +17,9 @@
 HINSTANCE hInst;                                // текущий экземпляр
 WCHAR szTitle[MAX_LOADSTRING];                  // Текст строки заголовка
 WCHAR szWindowClass[MAX_LOADSTRING];            // имя класса главного окна
-Render r;                                       // Рендер
-double p = 0;
+Render r; // Рендер
+double x = 0, y = 0, z = 0;
+
 // Отправить объявления функций, включенных в этот модуль кода:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -70,7 +71,7 @@ void Draw(HWND hWnd) {
     GetClientRect(hWnd, &rect);
     n1 = rect.right - rect.right % pixel + pixel;
     n2 = rect.bottom - rect.bottom % pixel + pixel;
-    auto im = new RGBQUAD[n1 * n2];
+    double h = (double)n2 / n1 * d;
 
     HDC hmdc = CreateCompatibleDC(hdc);
     HBITMAP bit = CreateCompatibleBitmap(hdc, n1, n2);
@@ -91,7 +92,7 @@ void Draw(HWND hWnd) {
     COL c; VEC D;
     int i; int j;
 
-    VEC O = { 0.0, 0.0, p };
+    VEC O = {x, y, z };
     for (int k = 0; k < n1 * n2; k += pixel) {
         i = k / n2 * pixel;
         j = k % n2;
@@ -117,9 +118,9 @@ void Draw(HWND hWnd) {
     clock_t end = clock();
     DeleteObject(bit);
     DeleteDC(hmdc);
-    delete[] im;
 
     EndPaint(hWnd, &ps);
+    UpdateWindow(hWnd);
 }
 
 //
@@ -207,21 +208,31 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
-    case WM_PAINT:
-        {
-            Draw(hWnd);
-        }
-        break;
     case WM_KEYDOWN:
     {
         WPARAM key = wParam; //Получаем код нажатой клавиши
         if (key == 65) {
-            p += 1;
+            x -= 1;
+            InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 68) {
-            p -= 1;
+            x += 1;
+            InvalidateRect(hWnd, NULL, NULL);
+        }
+        if (key == 83) {
+            y -= 1;
+            InvalidateRect(hWnd, NULL, NULL);
+        }
+        if (key == 87) {
+            y += 1;
+            InvalidateRect(hWnd, NULL, NULL);
         }
     }
+    case WM_PAINT:
+    {
+        Draw(hWnd);
+    }
+    break;
         break;
     case WM_DESTROY:
         PostQuitMessage(0);

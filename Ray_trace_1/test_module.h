@@ -3,12 +3,12 @@
 #include <cmath>
 #include <array>
 
-int n1 = 1024;  //  rename?
-int n2 = 512;
-int pixel = 16;
-double const d = 1;  // params of FOV and scaling screen // how does it work actually??
-double const w = d;  // params of FOV and scaling screen
-double const h = (double)n2/n1 * d;  // params of FOV and scaling screen
+int n1 = 600;  //  rename?
+int n2 = 600;
+int pixel = 4;
+double  d = 1;  // params of FOV and scaling screen // how does it work actually??
+double  w = d;  // params of FOV and scaling screen
+double h = (double)n2/n1 * d;  // params of FOV and scaling screen
 double const positive_inf = 100000000;
 double epsilon = 0.00001;
 using VEC = std::array<double, 3>;
