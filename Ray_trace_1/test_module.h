@@ -3,9 +3,9 @@
 #include <cmath>
 #include <array>
 
-int n1 = 600;  //  rename?
-int n2 = 600;
-int pixel = 4;
+int n1 = 300;  //  rename?
+int n2 = 300;
+int pixel = 8;
 double  d = 1;  // params of FOV and scaling screen // how does it work actually??
 double  w = d;  // params of FOV and scaling screen
 double h = (double)n2/n1 * d;  // params of FOV and scaling screen
@@ -16,10 +16,10 @@ using COL_t = BYTE;
 using COL = std::array<COL_t, 3>;
 using MATR = std::array<VEC, 3>;
 
-VEC v1 = { 1, 0, 0 };
-VEC v2 = { 0, 1, 0 };
-VEC v3 = { 0, 0, 1 };
-MATR Gramm = { v1, v2, v3 };
+/// <summary>
+/// Gram moment
+/// </summary>
+MATR Gram = {std::array<double, 3>{1, 0, 0}, {0, 1, 0 }, { 0, 0, 1 }};
 
 const COL RED = { 250, 0, 0 };    // Map? maybe
 const COL BLUE = { 0, 0, 250 };
@@ -34,18 +34,46 @@ VEC operator - (VEC v1) {
     VEC V = { -v1[0], -v1[1], -v1[2] };
     return V;
 }
+VEC operator + (VEC v1, VEC v2) {
+    return v1 - (-v2);
+}
+
+VEC operator * (MATR m, VEC v1) {
+    VEC v2 = { m[0][0] * v1[0] + m[0][1] * v1[1] + m[0][2] * v1[2],
+               m[1][0] * v1[0] + m[1][1] * v1[1] + m[1][2] * v1[2],
+               m[2][0] * v1[0] + m[2][1] * v1[1] + m[2][2] * v1[2]};
+    return v2;
+}
+MATR operator * (MATR m1, MATR m2) {
+    MATR m3 = {
+        std::array<double, 3>{
+         m1[0][0] * m2[0][0] + m1[0][1] * m2[1][0] + m1[0][2] * m2[2][0],
+         m1[0][0] * m2[0][1] + m1[0][1] * m2[1][1] + m1[0][2] * m2[2][1],
+         m1[0][0] * m2[0][2] + m1[0][1] * m2[1][2] + m1[0][2] * m2[2][2]},
+        {
+            m1[1][0] * m2[0][0] + m1[1][1] * m2[1][0] + m1[1][2] * m2[2][0],
+            m1[1][0] * m2[0][1] + m1[1][1] * m2[1][1] + m1[1][2] * m2[2][1],
+            m1[1][0] * m2[0][2] + m1[1][1] * m2[1][2] + m1[1][2] * m2[2][2]
+        },
+        {
+        m1[2][0] * m2[0][0] + m1[2][1] * m2[1][0] + m1[2][2] * m2[2][0],
+        m1[2][0] * m2[0][1] + m1[2][1] * m2[1][1] + m1[2][2] * m2[2][1],
+        m1[2][0] * m2[0][2] + m1[2][1] * m2[1][2] + m1[2][2] * m2[2][2]
+        } 
+    };
+    return m3;
+}
+
 double operator * (VEC v1, VEC v2) {
-    double V = 0;
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            V += v1[i] * v2[j] * Gramm[i][j];
-        }
-    }
-    return V;
+    v2 = Gram * v2;
+    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 VEC operator * (double v1, VEC v2) {
     VEC V = { v2[0] * v1, v2[1] * v1, v2[2] * v1 };
     return V;
+}
+VEC operator * (VEC v1, double v2) {
+    return v2 * v1;
 }
 COL operator * (double v1, COL v2) {
     COL V = { static_cast<COL_t>(v2[0] * v1), static_cast<COL_t>(v2[1] * v1), static_cast<COL_t>(v2[2] * v1) };
@@ -58,9 +86,45 @@ double abs(VEC &v1) {
     double V = v1 * v1;
     return std::sqrt(V);
 }
-VEC cross(VEC &v1, VEC &v2) {
+
+VEC cross(VEC v1, VEC v2) {
     VEC V = { v1[1] * v2[2] - v1[2] * v2[1], v2[0] * v1[2] - v1[0] * v2[2], v1[0] * v2[1] - v2[0] * v1[1] };
     return V;
+}
+
+VEC normalize(VEC& v) {
+    return (1 / abs(v)) * v;
+}
+VEC normalize(VEC&& v) {
+    VEC v1 = (1 / abs(v)) * v;
+    return v1;
+}
+/// <summary>
+///  Rotation around x axe
+/// </summary>
+/// <param name="angle"></param>
+/// <param name="v"></param>
+/// <returns></returns>
+VEC xRotate(double angle, VEC v) {
+    MATR xRotation = { std::array<double, 3>{1, 0, 0},
+        std::array<double,3>{0, std::cos(angle), -std::sin(angle)},
+        std::array<double, 3>{ 0, std::sin(angle), std::cos(angle)}};
+    return xRotation * v;
+}
+VEC yRotate(double angle, VEC v) {
+    MATR yRotation = { std::array<double, 3>{std::cos(angle), 0, std::sin(angle)},
+        std::array<double,3>{0, 1, 0},
+        std::array<double, 3>{ -std::sin(angle), 0, std::cos(angle)}};
+    return yRotation * v;
+}
+VEC xyRotate(double angle_x, double angle_y, VEC v) {
+    MATR xRotation = { std::array<double, 3>{1, 0, 0},
+        std::array<double,3>{0, std::cos(angle_x), -std::sin(angle_x)},
+        std::array<double, 3>{ 0, std::sin(angle_x), std::cos(angle_x)} };
+    MATR yRotation = { std::array<double, 3>{std::cos(angle_y), 0, std::sin(angle_y)},
+        std::array<double,3>{0, 1, 0},
+        std::array<double, 3>{ -std::sin(angle_y), 0, std::cos(angle_y)} };
+    return xRotation * yRotation * v;
 }
 
 /// <summary>

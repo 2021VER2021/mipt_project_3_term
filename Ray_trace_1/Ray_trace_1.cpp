@@ -18,8 +18,12 @@ HINSTANCE hInst;                                // текущий экземпл
 WCHAR szTitle[MAX_LOADSTRING];                  // Текст строки заголовка
 WCHAR szWindowClass[MAX_LOADSTRING];            // имя класса главного окна
 Render r; // Рендер
-double x = 0, y = 0, z = 0;
 
+VEC O = { 0, 0, 0 }; // Это в общем точка, из которой лучи испускаются
+VEC DIR = normalize({ 0.1, 0, 1 });  // Looking direction
+VEC UP = normalize({ 0, 1, 0 });
+double step = 0.5; // how much you will move // for debug, all logic must be rewrite
+double angle = 0.01; // how much you rotate
 // Отправить объявления функций, включенных в этот модуль кода:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -92,12 +96,11 @@ void Draw(HWND hWnd) {
     COL c; VEC D;
     int i; int j;
 
-    VEC O = {x, y, z };
+    
     for (int k = 0; k < n1 * n2; k += pixel) {
         i = k / n2 * pixel;
         j = k % n2;
-        D = { (i - (double)n1 / 2) * (double)w / (double)n1,
-               -(j - (double)n2 / 2) * (double)h / (double)n2, (double)d };
+        D = -cross(DIR, UP) * ((i - (double)n1 / 2) * w / (double)n1) - UP * ((j - (double)n2 / 2) * h / (double)n2) + DIR * d;
         c = r.Trace(O, D, 1, positive_inf, 1);  // set_color
         HBRUSH hb = CreateSolidBrush(RGB(c[0], c[1], c[2]));
         RECT l;  l.left = i; l.top = j; l.right = i + pixel;  l.bottom = j + pixel;
@@ -211,29 +214,74 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_KEYDOWN:
     {
         WPARAM key = wParam; //Получаем код нажатой клавиши
+        // x translation
         if (key == 65) {
-            x -= 1;
+            O = O - step * normalize(cross(UP, DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 68) {
-            x += 1;
+            O = O + step * normalize(cross(UP, DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
+        // y translation
         if (key == 83) {
-            y -= 1;
+            O = O - step * normalize(cross(cross(UP, DIR), DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 87) {
-            y += 1;
+            O = O + step * normalize(cross(cross(UP, DIR), DIR));
+            InvalidateRect(hWnd, NULL, NULL);
+        }
+        // z translation
+        if (key == 81) {
+            O = O + step * DIR;
+            InvalidateRect(hWnd, NULL, NULL);
+        }
+        if (key == 69) {
+            O = O - step * DIR;
+            InvalidateRect(hWnd, NULL, NULL);
+        }
+        // DIR change
+        if (key == 37) {
+            DIR = normalize(yRotate(-angle, DIR));
+            InvalidateRect(hWnd, NULL, NULL);
+        }
+        if (key == 39) {
+            DIR = normalize(yRotate(angle, DIR));
+            InvalidateRect(hWnd, NULL, NULL);
+        }
+        if (key == 38) {
+            DIR = normalize(xRotate(-angle, DIR));
+            InvalidateRect(hWnd, NULL, NULL);
+        }
+        if (key == 40) {
+            DIR = normalize(xRotate(angle, DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
     }
+    case WM_MOUSEMOVE:
+    {
+        POINT p;
+        RECT rectangle;
+        LPPOINT point = &p;
+        LPRECT rect = &rectangle;
+        GetCursorPos(point);
+        GetWindowRect(hWnd, rect);
+        int delta_y = point->x - (rect->right + rect->left) / 2;
+        int delta_x= point->y - (rect->bottom + rect->top) / 2;
+
+        DIR = normalize(yRotate(delta_y * angle, DIR));
+        DIR = normalize(xRotate(delta_x * angle, DIR));
+
+        SetCursorPos((rect->right + rect->left)/2, (rect->bottom + rect->top)/2);
+        InvalidateRect(hWnd, NULL, NULL);
+    }
+    break;
     case WM_PAINT:
     {
         Draw(hWnd);
     }
     break;
-        break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
