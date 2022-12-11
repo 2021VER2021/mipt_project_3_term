@@ -1,14 +1,16 @@
 ﻿// Ray_trace_1.cpp : Определяет точку входа для приложения.
 #define _SILENCE_AMP_DEPRECATION_WARNINGS
+#define clock_1
 #include "framework.h"
 #include "Ray_trace_1.h"
 //#include "ray_trace.h"
 #include "test_module.h"
-//#include "kernel.cu"
+//#include "Header1.h"
 #include <time.h>
+
 //#include <omp.h>
 //#include <boost/compute.hpp>
-#include<amp.h>
+
 
 #define debug
 #define MAX_LOADSTRING 100
@@ -18,12 +20,27 @@ HINSTANCE hInst;                                // текущий экземпл
 WCHAR szTitle[MAX_LOADSTRING];                  // Текст строки заголовка
 WCHAR szWindowClass[MAX_LOADSTRING];            // имя класса главного окна
 Render r; // Рендер
+double Pi = 3.1415926536;
 
 VEC O = { 0, 0, 0 }; // Это в общем точка, из которой лучи испускаются
 VEC DIR = normalize({ 0.1, 0, 1 });  // Looking direction
 VEC UP = normalize({ 0, 1, 0 });
 double step = 0.5; // how much you will move // for debug, all logic must be rewrite
-double angle = 0.01; // how much you rotate
+double angle = 0.005; // how much you rotate
+
+#ifdef GPU
+std::vector<COL_t> array_pixel(n1*n2*3);
+concurrency::array<COL_t, 2> array_pixel_gpu(n1* n2, 3, array_pixel.begin(), array_pixel.end());
+//concurrency::array_view<COL_t, 2> array_pixel_gpu(n1 * n2, 3, array_pixel);
+#endif
+
+void PaintRect(HDC hdc, RECT* rect, COLORREF colour)
+{
+    COLORREF oldcr = SetBkColor(hdc, colour);
+    ExtTextOut(hdc, 0, 0, ETO_OPAQUE, rect, (LPCWSTR)"", 0, 0);
+    SetBkColor(hdc, oldcr);
+}
+
 // Отправить объявления функций, включенных в этот модуль кода:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -67,17 +84,60 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     return (int) msg.wParam;
 }
+#ifdef GPU
+void DrawOptimal(HWND hWnd) {
+    PAINTSTRUCT ps;
+    HDC hdc = BeginPaint(hWnd, &ps);
 
+    RECT rect;
+    GetClientRect(hWnd, &rect);
+
+    HDC hmdc = CreateCompatibleDC(hdc);
+    HBITMAP bit = CreateCompatibleBitmap(hdc, n1, n2);
+    SelectObject(hmdc, bit);
+
+
+    concurrency::parallel_for_each(
+        array_pixel_gpu.extent, [=](concurrency::index<2> idx) restrict(amp) {
+
+            //auto i = idx[0] / n2;
+            //auto j = idx[0] % n2;
+            //VEC D = -cross(DIR, UP) * ((i - (double)n1 / 2) * w / (double)n1) - UP * ((j - (double)n2 / 2) * h / (double)n2) + DIR * d;
+
+        }
+    );
+    array_pixel = array_pixel_gpu;
+#ifdef clock_1
+    clock_t start = clock();
+#endif
+    // Magic happens here
+
+
+    BitBlt(hdc, 0, 0, n1, n2, hmdc, 0, 0, SRCCOPY); // fast, 0ms
+#ifdef clock_1
+    clock_t end = clock();
+#endif
+    DeleteObject(bit);
+    DeleteDC(hmdc);
+
+    EndPaint(hWnd, &ps);
+    UpdateWindow(hWnd);
+}
+#endif
 void Draw(HWND hWnd) {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(hWnd, &ps);
-    RECT rect;
+
+    RECT rect;   
     GetClientRect(hWnd, &rect);
+
+    pixel = rect.right / WIDTH;
     n1 = rect.right - rect.right % pixel + pixel;
     n2 = rect.bottom - rect.bottom % pixel + pixel;
     double h = (double)n2 / n1 * d;
+    
 
-    HDC hmdc = CreateCompatibleDC(hdc);
+    HDC hmdc = CreateCompatibleDC(hdc); 
     HBITMAP bit = CreateCompatibleBitmap(hdc, n1, n2);
     SelectObject(hmdc, bit);
 
@@ -92,24 +152,27 @@ void Draw(HWND hWnd) {
     bif.bmiHeader.biCompression = BI_RGB;
     bif.bmiHeader.biClrImportant = 0;
     */
+#ifdef clock_1
     clock_t start = clock();
+#endif
     COL c; VEC D;
     int i; int j;
-
-    
+    RECT l;
+ 
     for (int k = 0; k < n1 * n2; k += pixel) {
         i = k / n2 * pixel;
         j = k % n2;
         D = -cross(DIR, UP) * ((i - (double)n1 / 2) * w / (double)n1) - UP * ((j - (double)n2 / 2) * h / (double)n2) + DIR * d;
-        c = r.Trace(O, D, 1, positive_inf, 1);  // set_color
-        HBRUSH hb = CreateSolidBrush(RGB(c[0], c[1], c[2]));
-        RECT l;  l.left = i; l.top = j; l.right = i + pixel;  l.bottom = j + pixel;
-        FillRect(hmdc, &l, hb);
-        DeleteObject(hb);
+        c = r.Trace(O, D, 1, positive_inf, 0);  // set_color
+        //HBRUSH hb = CreateSolidBrush(RGB(c[0], c[1], c[2]));
+        l.left = i; l.top = j; l.right = i + pixel;  l.bottom = j + pixel;
+        PaintRect(hmdc, &l, RGB(c[0], c[1], c[2]));
+        //FillRect(hmdc, &l, hb); // this is huge
+        //DeleteObject(hb);
         // SetPixel(hmdc, i, j, RGB(c[0], c[1], c[2]));
     }
 
-    BitBlt(hdc, 0, 0, n1, n2, hmdc, 0, 0, SRCCOPY);
+    BitBlt(hdc, 0, 0, n1, n2, hmdc, 0, 0, SRCCOPY); // fast, 0ms
 
     //GetDIBits(hmdc, bit, 0, 0, 0, &bif, DIB_RGB_COLORS);
     //GetDIBits(hmdc, bit, 0, n2, im, &bif, DIB_RGB_COLORS);
@@ -117,8 +180,9 @@ void Draw(HWND hWnd) {
     //SelectObject(hmdc, bit);
 
     //BitBlt(hdc, 0, 0, n1, n2, hmdc, 0, 0, SRCCOPY);
-
+#ifdef clock_1
     clock_t end = clock();
+#endif
     DeleteObject(bit);
     DeleteDC(hmdc);
 
@@ -225,11 +289,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         // y translation
         if (key == 83) {
-            O = O - step * normalize(cross(cross(UP, DIR), DIR));
+            O = O + step * normalize(cross(cross(UP, DIR), DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 87) {
-            O = O + step * normalize(cross(cross(UP, DIR), DIR));
+            O = O - step * normalize(cross(cross(UP, DIR), DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
         // z translation
@@ -269,9 +333,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         GetWindowRect(hWnd, rect);
         int delta_y = point->x - (rect->right + rect->left) / 2;
         int delta_x= point->y - (rect->bottom + rect->top) / 2;
-
+        if (abs(DIR[0]) < abs(DIR[2])) {
+            if (DIR[2] > 0) {
+                DIR = normalize(xRotate(delta_x * angle, DIR));
+            }
+            else {
+                DIR = normalize(xRotate(-delta_x * angle, DIR));
+            }
+        }
+        else {
+            if (DIR[0] > 0) {
+                DIR = normalize(zRotate(-delta_x * angle, DIR));
+            }
+            else {
+                DIR = normalize(zRotate(delta_x * angle, DIR));
+            }
+        }
         DIR = normalize(yRotate(delta_y * angle, DIR));
-        DIR = normalize(xRotate(delta_x * angle, DIR));
+        
 
         SetCursorPos((rect->right + rect->left)/2, (rect->bottom + rect->top)/2);
         InvalidateRect(hWnd, NULL, NULL);

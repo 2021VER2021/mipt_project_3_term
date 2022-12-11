@@ -2,24 +2,36 @@
 #include <vector>
 #include <cmath>
 #include <array>
+#include<amp.h>
 
-int n1 = 300;  //  rename?
-int n2 = 300;
-int pixel = 8;
+int const WIDTH = 40;
+int const HEIGHT = 40;
+
+int n1 = 600;  //  rename?
+int n2 = 600;
+int pixel = n1 / WIDTH;
 double  d = 1;  // params of FOV and scaling screen // how does it work actually??
 double  w = d;  // params of FOV and scaling screen
 double h = (double)n2/n1 * d;  // params of FOV and scaling screen
-double const positive_inf = 100000000;
+double const positive_inf = 10000000;
 double epsilon = 0.00001;
 using VEC = std::array<double, 3>;
 using COL_t = BYTE;
 using COL = std::array<COL_t, 3>;
 using MATR = std::array<VEC, 3>;
 
+clock_t s_1 = 0;
+clock_t e_1 = 0;
+
 /// <summary>
 /// Gram moment
 /// </summary>
-MATR Gram = {std::array<double, 3>{1, 0, 0}, {0, 1, 0 }, { 0, 0, 1 }};
+MATR Gram = 
+{
+    std::array<double, 3>{1, 0, 0},
+    std::array<double, 3>{0, 1, 0},
+    std::array<double, 3>{0, 0, 1}
+};
 
 const COL RED = { 250, 0, 0 };    // Map? maybe
 const COL BLUE = { 0, 0, 250 };
@@ -65,7 +77,7 @@ MATR operator * (MATR m1, MATR m2) {
 }
 
 double operator * (VEC v1, VEC v2) {
-    v2 = Gram * v2;
+    //v2 = Gram * v2;  // epic boost
     return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
 }
 VEC operator * (double v1, VEC v2) {
@@ -105,25 +117,37 @@ VEC normalize(VEC&& v) {
 /// <param name="angle"></param>
 /// <param name="v"></param>
 /// <returns></returns>
-VEC xRotate(double angle, VEC v) {
-    MATR xRotation = { std::array<double, 3>{1, 0, 0},
-        std::array<double,3>{0, std::cos(angle), -std::sin(angle)},
-        std::array<double, 3>{ 0, std::sin(angle), std::cos(angle)}};
+VEC xRotate(double angle, VEC v) {   // FIXIT
+    MATR xRotation = { 
+        VEC{1, 0, 0},
+        VEC{0, std::cos(angle), -std::sin(angle)},
+        VEC{ 0, std::sin(angle), std::cos(angle)}};
     return xRotation * v;
 }
-VEC yRotate(double angle, VEC v) {
-    MATR yRotation = { std::array<double, 3>{std::cos(angle), 0, std::sin(angle)},
-        std::array<double,3>{0, 1, 0},
-        std::array<double, 3>{ -std::sin(angle), 0, std::cos(angle)}};
+VEC yRotate(double angle, VEC v) {    // FIXIT
+    MATR yRotation = { 
+        VEC{std::cos(angle), 0, std::sin(angle)},
+        VEC{0, 1, 0},
+        VEC{ -std::sin(angle), 0, std::cos(angle)}};
     return yRotation * v;
 }
-VEC xyRotate(double angle_x, double angle_y, VEC v) {
-    MATR xRotation = { std::array<double, 3>{1, 0, 0},
-        std::array<double,3>{0, std::cos(angle_x), -std::sin(angle_x)},
-        std::array<double, 3>{ 0, std::sin(angle_x), std::cos(angle_x)} };
-    MATR yRotation = { std::array<double, 3>{std::cos(angle_y), 0, std::sin(angle_y)},
-        std::array<double,3>{0, 1, 0},
-        std::array<double, 3>{ -std::sin(angle_y), 0, std::cos(angle_y)} };
+
+VEC zRotate(double angle, VEC v) {    // FIXIT
+    MATR zRotation = {
+        VEC{std::cos(angle), -std::sin(angle), 0},
+        VEC{std::sin(angle), std::cos(angle), 0},
+        VEC{0, 0, 1} };
+    return zRotation * v;
+}
+VEC xyRotate(double angle_x, double angle_y, VEC v) { // FIXIT
+    MATR xRotation = {
+        VEC{1, 0, 0},
+        VEC{0, std::cos(angle_x), -std::sin(angle_x)},
+        VEC{ 0, std::sin(angle_x), std::cos(angle_x)} };
+    MATR yRotation = { 
+        VEC{std::cos(angle_y), 0, std::sin(angle_y)},
+        VEC{0, 1, 0},
+        VEC{ -std::sin(angle_y), 0, std::cos(angle_y)} };
     return xRotation * yRotation * v;
 }
 
@@ -486,15 +510,15 @@ public:
 class Render final {
     std::vector<GenericObject*> spheres = 
     {
-         new SphereObj({0, 0, 15}, 2, BLUE, 500, 0.2),
-         new SphereObj({4, -2, 20}, 1.5, RED, 100, 0),
+         new SphereObj({0, 0, 15}, 2, BLUE, 1, 0.2),
+         new SphereObj({4, -2, 20}, 1.5, RED, 1, 0),
          new PlaneObj({0, 1, 0}, {0, -3, 10}, {255, 255, 255}, 1, 0)
     };
 
     //std::vector<GenericObject*> spheres;
     std::vector<LightObj> lights = {
         LightObj('a', 0.3),
-        LightObj({1, 1, -2}, 'd', 0.7)
+        LightObj({1, 1, -2}, 'd', 0.3)
     
     };
 
@@ -510,10 +534,11 @@ public:
         }
     }
     */
-    VEC ReflectRay(VEC R, VEC N) {
-        // for sphere
-        VEC V = 2 * (R * N) * N - R;
-        return V;
+    VEC ReflectRay(VEC &R, VEC &N) {
+        return  2 * (R * N) * N - R;
+    }
+    VEC ReflectRay(VEC&& R, VEC& N) {
+        return  2 * (R * N) * N - R;
     }
     void ClosestIntersection(VEC O, VEC V, double t_min, double t_max, GenericObject*& closest_sphere, double& closest_t) {
         for (int j = 0; j < spheres.size(); j++) {
@@ -546,10 +571,9 @@ public:
             }
             else {
                 VEC L; // vector to the light
-                if (Light.get_type() == 'p') {
+                if (Light.get_type() == 'p') { // FIXIT (refactor Light to be inheritance
                     L = Light.get_d() - P;
                 }
-
                 if (Light.get_type() == 'd') {
                     L = Light.get_d();
                 }
@@ -609,8 +633,8 @@ public:
         if ((depth <= 0) || (r <= 0)) {
             return local_color;
         }
-        VEC R = ReflectRay(-V, N);
-        COL reflected_color = Trace(P, R, epsilon, positive_inf, depth - 1);
+
+        COL reflected_color = Trace(P, ReflectRay(-V, N), epsilon, positive_inf, depth - 1);
         return (1 - r) * local_color + r * reflected_color;
     }
 };
