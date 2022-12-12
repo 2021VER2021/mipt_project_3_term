@@ -1,14 +1,23 @@
+#include "framework.h"
+
 #include <iostream>
 #include <vector>
 #include <cmath>
 #include <array>
-#include<amp.h>
+//#include<amp.h>
+//#include <omp.h>
+ 
+LRESULT CALLBACK  WndProc(HWND, UINT, WPARAM, LPARAM);
 
-int const WIDTH = 40;
-int const HEIGHT = 40;
+#ifdef OMP
+int const MAX_THREADS = 3;
+#endif
 
-int n1 = 600;  //  rename?
-int n2 = 600;
+int const WIDTH = 50;
+int const HEIGHT = 50;
+
+int n1 = 1000;  //  rename?
+int n2 = 1000;
 int pixel = n1 / WIDTH;
 double  d = 1;  // params of FOV and scaling screen // how does it work actually??
 double  w = d;  // params of FOV and scaling screen
@@ -75,11 +84,24 @@ MATR operator * (MATR m1, MATR m2) {
     };
     return m3;
 }
-
+#ifdef OMP
+double operator * (VEC v1, VEC v2) {
+    double answer = 0;
+#pragma omp parallel for reduction(+:answer)
+        for (int i = 0; i < 3; i++) {
+            answer += v1[i] * v2[i];
+        }
+#pragma omp barrier
+    return answer;
+}
+#else
 double operator * (VEC v1, VEC v2) {
     //v2 = Gram * v2;  // epic boost
-    return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+    double answer = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+    return answer;
 }
+#endif
+
 VEC operator * (double v1, VEC v2) {
     VEC V = { v2[0] * v1, v2[1] * v1, v2[2] * v1 };
     return V;
@@ -149,6 +171,13 @@ VEC xyRotate(double angle_x, double angle_y, VEC v) { // FIXIT
         VEC{0, 1, 0},
         VEC{ -std::sin(angle_y), 0, std::cos(angle_y)} };
     return xRotation * yRotation * v;
+}
+
+void PaintRect(HDC hdc, RECT* rect, COLORREF colour)
+{
+    COLORREF oldcr = SetBkColor(hdc, colour);
+    ExtTextOut(hdc, 0, 0, ETO_OPAQUE, rect, (LPCWSTR)"", 0, 0);
+    SetBkColor(hdc, oldcr);
 }
 
 /// <summary>
@@ -508,23 +537,87 @@ public:
 };
 
 class Render final {
-    std::vector<GenericObject*> spheres = 
-    {
-         new SphereObj({0, 0, 15}, 2, BLUE, 1, 0.2),
-         new SphereObj({4, -2, 20}, 1.5, RED, 1, 0),
-         new PlaneObj({0, 1, 0}, {0, -3, 10}, {255, 255, 255}, 1, 0)
-    };
+    std::vector<GenericObject*>spheres;
 
     //std::vector<GenericObject*> spheres;
     std::vector<LightObj> lights = {
         LightObj('a', 0.3),
         LightObj({1, 1, -2}, 'd', 0.3)
-    
     };
 
+    
 public:
-    ~Render() { for (int i = 0; i < spheres.size(); i++) { delete spheres[i]; } }
-    Render() {};
+    HINSTANCE hInst;                                // текущий экземпл€р
+    WCHAR szTitle[MAX_LOADSTRING];                  // “екст строки заголовка
+    WCHAR szWindowClass[MAX_LOADSTRING];            // им€ класса главного окна
+    //~Render() { for (auto i : spheres) { delete i; } }
+    Render(HINSTANCE hInstance) {
+        spheres.push_back(new SphereObj({ 0, 0, 15 }, 2, BLUE, 1, 0.2));
+        spheres.push_back(new SphereObj({ 4, -2, 20 }, 1.5, RED, 1, 0));
+        spheres.push_back(new PlaneObj({ 0, 1, 0 }, { 0, -3, 10 }, { 255, 255, 255 }, 1, 0));
+    };
+    Render operator = (Render r) {
+        spheres.clear();
+        for (auto i : r.spheres) {
+            spheres.push_back(i);
+        }
+        return *this;
+    }
+
+    //
+//  ‘”Ќ ÷»я: MyRegisterClass()
+//
+//  ÷≈Ћ№: –егистрирует класс окна.
+//
+    ATOM MyRegisterClass(HINSTANCE hInstance)
+    {
+        WNDCLASSEXW wcex;
+
+        wcex.cbSize = sizeof(WNDCLASSEX);
+
+        wcex.style = CS_HREDRAW | CS_VREDRAW;
+        wcex.lpfnWndProc = WndProc;
+        wcex.cbClsExtra = 0;
+        wcex.cbWndExtra = 0;
+        wcex.hInstance = hInstance;
+        wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_RAYTRACE1));
+        wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+        wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+        wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_RAYTRACE1);
+        wcex.lpszClassName = szWindowClass;
+        wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+
+        return RegisterClassExW(&wcex);
+    }
+
+//
+//   ‘”Ќ ÷»я: InitInstance(HINSTANCE, int)
+//
+//   ÷≈Ћ№: —охран€ет маркер экземпл€ра и создает главное окно
+//
+//    ќћћ≈Ќ“ј–»»:
+//
+//        ¬ этой функции маркер экземпл€ра сохран€етс€ в глобальной переменной, а также
+//        создаетс€ и выводитс€ главное окно программы.
+//
+    BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
+    {
+        hInst = hInstance; // —охранить маркер экземпл€ра в глобальной переменной
+
+        HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+            CW_USEDEFAULT, 0, n1, n2, nullptr, nullptr, hInstance, nullptr);
+
+        if (!hWnd)
+        {
+            return FALSE;
+        }
+
+        ShowWindow(hWnd, nCmdShow);
+        UpdateWindow(hWnd);
+
+        return TRUE;
+    }
+
     /*
     Render(int n, GenericObject *obj1, ...) {  //FIXIT
         for (int i = 0; i < n; i++) {
@@ -540,11 +633,12 @@ public:
     VEC ReflectRay(VEC&& R, VEC& N) {
         return  2 * (R * N) * N - R;
     }
+
     void ClosestIntersection(VEC O, VEC V, double t_min, double t_max, GenericObject*& closest_sphere, double& closest_t) {
         for (int j = 0; j < spheres.size(); j++) {
             auto Sphere = spheres[j];
             double t;
-            Sphere->Intercections(O, V, t_min, t_max, t);  // DONE
+            Sphere->Intercections(O, V, t_min, t_max, t);  
             if (((t >= t_min) && (t <= t_max)) && (t < closest_t)) {
                 closest_t = t;
                 closest_sphere = (spheres[j]);
@@ -570,19 +664,19 @@ public:
                 i += Light.get_intensity();
             }
             else {
-                VEC L; // vector to the light
-                if (Light.get_type() == 'p') { // FIXIT (refactor Light to be inheritance
+                VEC L;                                                                     // vector to the light
+                if (Light.get_type() == 'p') {                                             // FIXIT (refactor Light to be inheritance
                     L = Light.get_d() - P;
                 }
                 if (Light.get_type() == 'd') {
                     L = Light.get_d();
                 }
 
-                double closest_t = positive_inf;  // parameter of the distamce to the shadow_sphere
-                GenericObject* shadow_sphere = nullptr;  // shadow_sphere - object, which will make a shadow
-                ClosestIntersection(P, L, epsilon, positive_inf, shadow_sphere, closest_t); // calculate intersection
+                double closest_t = positive_inf;                                           // parameter of the distamce to the shadow_sphere
+                GenericObject* shadow_sphere = nullptr;                                    // shadow_sphere - object, which will make a shadow
+                ClosestIntersection(P, L, epsilon, positive_inf, shadow_sphere, closest_t);// calculate intersection
                 
-                if (shadow_sphere != nullptr) { // if the shadow_sphere != nullptr, then there is a shadow
+                if (shadow_sphere != nullptr) {                                            // if the shadow_sphere != nullptr, then there is a shadow
                     continue;
                 }
                 // if not, then compute light
@@ -597,7 +691,7 @@ public:
                     VEC R = ReflectRay(L, N);
                     double r_dot_v = (R * V);
                     if ((r_dot_v > 0) && (R*R != 0) && (V*V != 0)) {
-                        i += Light.get_intensity() * std::pow(r_dot_v / (abs(R) * abs(V)), s);
+                        i += Light.get_intensity() * std::pow(r_dot_v / (abs(R) * abs(V)), s);// this is expensive FIXIT
                     }
                 }
             }
@@ -605,10 +699,6 @@ public:
         }
         return i < 1 ? i : 1;
     }
-
-
-
-
 
     COL Trace(VEC O, VEC V, double t_min, double t_max, int depth) {
         double closest_t = positive_inf;
