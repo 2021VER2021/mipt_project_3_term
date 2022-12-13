@@ -13,64 +13,64 @@
 //#include "Header1.h"
 #include <time.h>
 
+LRESULT CALLBACK  WndProc(HWND, UINT, WPARAM, LPARAM);
 
-Render r(nullptr); // Рендер
-double Pi = 3.1415926536;
-
-VEC O = { 0, 0, 0 }; // Это в общем точка, из которой лучи испускаются
-VEC DIR = normalize({ 0.1, 0, 1 });  // Looking direction
-VEC UP = normalize({ 0, 1, 0 });
-double step = 0.5; // how much you will move // for debug, all logic must be rewrite
-double angle = 0.005; // how much you rotate
+Render r(nullptr); // Рендер ( это кринж )
 
 #ifdef GPU
 std::vector<COL_t> array_pixel(n1*n2*3);
 concurrency::array<COL_t, 2> array_pixel_gpu(n1* n2, 3, array_pixel.begin(), array_pixel.end());
 //concurrency::array_view<COL_t, 2> array_pixel_gpu(n1 * n2, 3, array_pixel);
 #endif
-
+/// <summary>
+/// main function of the program
+/// Logic code goes here
+/// </summary>
+/// <param name="hInstance"></param>
+/// <param name="hPrevInstance"></param>
+/// <param name="lpCmdLine"></param>
+/// <param name="nCmdShow"></param>
+/// <returns></returns>
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
                      _In_ int       nCmdShow)
 {
-    r = Render(hInstance); // Рендер (инициализировали)
+    // init
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // init_window
-    LoadStringW(hInstance, IDS_APP_TITLE, r.szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_RAYTRACE1, r.szWindowClass, MAX_LOADSTRING);
-    r.MyRegisterClass(hInstance);
+    r = Render(hInstance); // Рендер (инициализировали)
 
-    // TODO: Разместите код здесь.
+    // set some objects
+    r.set_obj(new SphereObj({ 0, 0, 15 }, 2, BLUE, 1, 0.2));
+    r.set_obj(new SphereObj({ 4, -2, 20 }, 1.5, RED, 1, 0));
+    r.set_obj(new PlaneObj({ 0, 1, 0 }, { 0, -3, 10 }, { 255, 255, 255 }, 1, 0));
+
 #ifdef OMP
     omp_set_num_threads(MAX_THREADS);
 #endif
 
-    // Инициализация глобальных строк
     // Выполнить инициализацию приложения:
-    if (!r.InitInstance (hInstance, nCmdShow))
-    {
-        return FALSE;
-    }
+    r.MyRegisterClass(&WndProc); // так нужно, передаём ссылку на функцию, чего таково
+    r.InitInstance(nCmdShow);
 
+    // переменная для сообщений, и переменная для (чего?)
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_RAYTRACE1));
-
     MSG msg;
 
-    // Цикл основного сообщения:
+    // Цикл основного сообщения 
     while (GetMessage(&msg, nullptr, 0, 0))
     {
         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
         {
             TranslateMessage(&msg);
-            DispatchMessage(&msg);
+            DispatchMessage(&msg); // диспетчеризация событий
         }
     }
-
     return (int) msg.wParam;
 }
+
 // I think this will never happen
 #ifdef GPU
 void DrawOptimal(HWND hWnd) {
@@ -112,72 +112,6 @@ void DrawOptimal(HWND hWnd) {
     UpdateWindow(hWnd);
 }
 #endif
-void Draw(HWND hWnd) {
-    PAINTSTRUCT ps;
-    HDC hdc = BeginPaint(hWnd, &ps);
-
-    RECT rect;   
-    GetClientRect(hWnd, &rect);
-
-    pixel = rect.right / WIDTH;
-    n1 = rect.right - rect.right % pixel + pixel;
-    n2 = rect.bottom - rect.bottom % pixel + pixel;
-    double h = (double)n2 / n1 * d;
-    
-
-    HDC hmdc = CreateCompatibleDC(hdc); 
-    HBITMAP bit = CreateCompatibleBitmap(hdc, n1, n2);
-    SelectObject(hmdc, bit);
-
-    /*
-    BITMAPINFO bif;
-    ZeroMemory(&bif, sizeof(BITMAPINFO));
-    bif.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bif.bmiHeader.biBitCount = 32;
-    bif.bmiHeader.biWidth = n1;
-    bif.bmiHeader.biHeight = n2;
-    bif.bmiHeader.biPlanes = 1;
-    bif.bmiHeader.biCompression = BI_RGB;
-    bif.bmiHeader.biClrImportant = 0;
-    */
-#ifdef clock_1
-    clock_t start = clock();
-#endif
-    COL c; VEC D;
-    int i; int j;
-    RECT l;
- 
-    for (int k = 0; k < n1 * n2; k += pixel) {
-        i = k / n2 * pixel;
-        j = k % n2;
-        D = -cross(DIR, UP) * ((i - (double)n1 / 2) * w / (double)n1) - UP * ((j - (double)n2 / 2) * h / (double)n2) + DIR * d;
-        c = r.Trace(O, D, 1, positive_inf, 0);  // set_color
-        //HBRUSH hb = CreateSolidBrush(RGB(c[0], c[1], c[2]));
-        l.left = i; l.top = j; l.right = i + pixel;  l.bottom = j + pixel;
-        PaintRect(hmdc, &l, RGB(c[0], c[1], c[2]));
-        //FillRect(hmdc, &l, hb); // this is huge
-        //DeleteObject(hb);
-        // SetPixel(hmdc, i, j, RGB(c[0], c[1], c[2]));
-    }
-
-    BitBlt(hdc, 0, 0, n1, n2, hmdc, 0, 0, SRCCOPY); // fast, 0ms
-
-    //GetDIBits(hmdc, bit, 0, 0, 0, &bif, DIB_RGB_COLORS);
-    //GetDIBits(hmdc, bit, 0, n2, im, &bif, DIB_RGB_COLORS);
-    //SetDIBitsToDevice(hdc, 0, 0, n1, n2, 0, 0, 0, n2, im, &bif, DIB_RGB_COLORS);
-    //SelectObject(hmdc, bit);
-
-    //BitBlt(hdc, 0, 0, n1, n2, hmdc, 0, 0, SRCCOPY);
-#ifdef clock_1
-    clock_t end = clock();
-    clock_t result = end - start;
-#endif
-    DeleteObject(bit);
-    DeleteDC(hmdc);
-
-    EndPaint(hWnd, &ps);
-    UpdateWindow(hWnd);
-}
 
 //
 //  ФУНКЦИЯ: WndProc(HWND, UINT, WPARAM, LPARAM)
@@ -188,7 +122,7 @@ void Draw(HWND hWnd) {
 //  WM_PAINT    - Отрисовка главного окна
 //  WM_DESTROY  - отправить сообщение о выходе и вернуться
 //
-//
+// dispatcherisation function
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
@@ -210,87 +144,66 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_KEYDOWN:
     {
         WPARAM key = wParam; //Получаем код нажатой клавиши
+
         // x translation
         if (key == 65) {
-            O = O - step * normalize(cross(UP, DIR));
+            r.O = r.O - r.step * normalize(cross(r.UP, r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 68) {
-            O = O + step * normalize(cross(UP, DIR));
+            r.O = r.O + r.step * normalize(cross(r.UP, r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
+
         // y translation
         if (key == 83) {
-            O = O + step * normalize(cross(cross(UP, DIR), DIR));
+            r.O = r.O + r.step * normalize(cross(cross(r.UP, r.DIR), r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 87) {
-            O = O - step * normalize(cross(cross(UP, DIR), DIR));
+            r.O = r.O - r.step * normalize(cross(cross(r.UP, r.DIR), r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
+
         // z translation
         if (key == 81) {
-            O = O + step * DIR;
+            r.O = r.O + r.step * r.DIR;
             InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 69) {
-            O = O - step * DIR;
+            r.O = r.O - r.step * r.DIR;
             InvalidateRect(hWnd, NULL, NULL);
         }
+
         // DIR change
         if (key == 37) {
-            DIR = normalize(yRotate(-angle, DIR));
+            r.DIR = normalize(yRotate(-r.angle, r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 39) {
-            DIR = normalize(yRotate(angle, DIR));
+            r.DIR = normalize(yRotate(r.angle, r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 38) {
-            DIR = normalize(xRotate(-angle, DIR));
+            r.DIR = normalize(xRotate(-r.angle, r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 40) {
-            DIR = normalize(xRotate(angle, DIR));
+            r.DIR = normalize(xRotate(r.angle, r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
+
     }
     case WM_MOUSEMOVE:
     {
-        POINT p;
-        RECT rectangle;
-        LPPOINT point = &p;
-        LPRECT rect = &rectangle;
-        GetCursorPos(point);
-        GetWindowRect(hWnd, rect);
-        int delta_y = point->x - (rect->right + rect->left) / 2;
-        int delta_x= point->y - (rect->bottom + rect->top) / 2;
-        if (abs(DIR[0]) < abs(DIR[2])) {
-            if (DIR[2] > 0) {
-                DIR = normalize(xRotate(delta_x * angle, DIR));
-            }
-            else {
-                DIR = normalize(xRotate(-delta_x * angle, DIR));
-            }
-        }
-        else {
-            if (DIR[0] > 0) {
-                DIR = normalize(zRotate(-delta_x * angle, DIR));
-            }
-            else {
-                DIR = normalize(zRotate(delta_x * angle, DIR));
-            }
-        }
-        DIR = normalize(yRotate(delta_y * angle, DIR));
-        
+        r.CameraRotate(hWnd);
 
-        SetCursorPos((rect->right + rect->left)/2, (rect->bottom + rect->top)/2);
         InvalidateRect(hWnd, NULL, NULL);
     }
     break;
     case WM_PAINT:
     {
-        Draw(hWnd);
+        r.DrawScene(hWnd);
     }
     break;
     case WM_DESTROY:

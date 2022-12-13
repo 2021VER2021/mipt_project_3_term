@@ -6,18 +6,16 @@
 #include <array>
 //#include<amp.h>
 //#include <omp.h>
- 
-LRESULT CALLBACK  WndProc(HWND, UINT, WPARAM, LPARAM);
 
 #ifdef OMP
 int const MAX_THREADS = 3;
 #endif
 
-int const WIDTH = 50;
-int const HEIGHT = 50;
+int const WIDTH = 30;
+int const HEIGHT = 30;
 
-int n1 = 1000;  //  rename?
-int n2 = 1000;
+int n1 = 300;  //  rename?
+int n2 = 200;
 int pixel = n1 / WIDTH;
 double  d = 1;  // params of FOV and scaling screen // how does it work actually??
 double  w = d;  // params of FOV and scaling screen
@@ -171,6 +169,20 @@ VEC xyRotate(double angle_x, double angle_y, VEC v) { // FIXIT
         VEC{0, 1, 0},
         VEC{ -std::sin(angle_y), 0, std::cos(angle_y)} };
     return xRotation * yRotation * v;
+}
+
+/// <summary>
+    ///  Helpful function, to calculate reflections
+    /// </summary>
+    /// <param name="R"></param>
+    /// <param name="N"></param>
+    /// <returns></returns>
+VEC ReflectRay(VEC& R, VEC& N) {
+    return  2 * (R * N) * N - R;
+}
+
+VEC ReflectRay(VEC&& R, VEC& N) {
+    return  2 * (R * N) * N - R;
 }
 
 void PaintRect(HDC hdc, RECT* rect, COLORREF colour)
@@ -536,26 +548,36 @@ public:
     }
 };
 
+
+
+
 class Render final {
     std::vector<GenericObject*>spheres;
-
-    //std::vector<GenericObject*> spheres;
     std::vector<LightObj> lights = {
         LightObj('a', 0.3),
         LightObj({1, 1, -2}, 'd', 0.3)
     };
-
-    
 public:
+    // render camera motion parameters
+    double Pi = 3.1415926536;
+    VEC O = { 0, 0, 0 };                 // Ёто в общем точка, из которой лучи испускаютс€
+    VEC DIR = normalize({ 0.1, 0, 1 });  // Looking direction
+    VEC UP = normalize({ 0, 1, 0 });
+    double step = 0.5;                   // how much you will move // for debug, all logic must be rewrite
+    double angle = 0.005;                // how much you rotate
+
+    // winAPI variables
     HINSTANCE hInst;                                // текущий экземпл€р
     WCHAR szTitle[MAX_LOADSTRING];                  // “екст строки заголовка
     WCHAR szWindowClass[MAX_LOADSTRING];            // им€ класса главного окна
-    //~Render() { for (auto i : spheres) { delete i; } }
+
+    //~Render() { for (auto i : spheres) { delete i; } } // FIXIT
     Render(HINSTANCE hInstance) {
-        spheres.push_back(new SphereObj({ 0, 0, 15 }, 2, BLUE, 1, 0.2));
-        spheres.push_back(new SphereObj({ 4, -2, 20 }, 1.5, RED, 1, 0));
-        spheres.push_back(new PlaneObj({ 0, 1, 0 }, { 0, -3, 10 }, { 255, 255, 255 }, 1, 0));
+        hInst = hInstance;
+        LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+        LoadStringW(hInstance, IDC_RAYTRACE1, szWindowClass, MAX_LOADSTRING);
     };
+
     Render operator = (Render r) {
         spheres.clear();
         for (auto i : r.spheres) {
@@ -563,13 +585,31 @@ public:
         }
         return *this;
     }
+    /// <summary>
+    /// Use this function to set objects, that will be in render
+    /// If you send object to render, it will now manage memory
+    /// </summary>
+    /// <param name="id"></param>
+    /// <returns></returns>
+    /// 
+    void set_obj(GenericObject* object) {
+        spheres.push_back(object);
+    }
+    
+    GenericObject* get_object(int id) { // FIXIT (pointless)
+        if (spheres.size() > id) {
+            return spheres[id];
+        }
+        else {
+            return nullptr;
+        }
+    }
+   
 
-    //
-//  ‘”Ќ ÷»я: MyRegisterClass()
-//
-//  ÷≈Ћ№: –егистрирует класс окна.
-//
-    ATOM MyRegisterClass(HINSTANCE hInstance)
+    ///
+    /// Register window class
+    /// 
+    ATOM MyRegisterClass(LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM))
     {
         WNDCLASSEXW wcex;
 
@@ -579,8 +619,8 @@ public:
         wcex.lpfnWndProc = WndProc;
         wcex.cbClsExtra = 0;
         wcex.cbWndExtra = 0;
-        wcex.hInstance = hInstance;
-        wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_RAYTRACE1));
+        wcex.hInstance = hInst;
+        wcex.hIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_RAYTRACE1));
         wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
         wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
         wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_RAYTRACE1);
@@ -600,38 +640,111 @@ public:
 //        ¬ этой функции маркер экземпл€ра сохран€етс€ в глобальной переменной, а также
 //        создаетс€ и выводитс€ главное окно программы.
 //
-    BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
+    BOOL InitInstance(int nCmdShow)
     {
-        hInst = hInstance; // —охранить маркер экземпл€ра в глобальной переменной
-
         HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, 0, n1, n2, nullptr, nullptr, hInstance, nullptr);
-
-        if (!hWnd)
-        {
-            return FALSE;
-        }
-
+            CW_USEDEFAULT, 0, n1, n2, nullptr, nullptr, hInst, nullptr);
         ShowWindow(hWnd, nCmdShow);
         UpdateWindow(hWnd);
-
         return TRUE;
     }
 
-    /*
-    Render(int n, GenericObject *obj1, ...) {  //FIXIT
-        for (int i = 0; i < n; i++) {
-            GenericObject* obj = obj1 + i * sizeof(obj1);
-            spheres.push_back(obj);
-            //obj1 = nullptr;
+    void DrawScene(HWND hWnd) {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        RECT rect;
+        GetClientRect(hWnd, &rect);
+
+        pixel = rect.right / WIDTH;
+        n1 = rect.right - rect.right % pixel + pixel;
+        n2 = rect.bottom - rect.bottom % pixel + pixel;
+        double h = (double)n2 / n1 * d;
+
+
+        HDC hmdc = CreateCompatibleDC(hdc);
+        HBITMAP bit = CreateCompatibleBitmap(hdc, n1, n2);
+        SelectObject(hmdc, bit);
+
+        /*
+        BITMAPINFO bif;
+        ZeroMemory(&bif, sizeof(BITMAPINFO));
+        bif.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        bif.bmiHeader.biBitCount = 32;
+        bif.bmiHeader.biWidth = n1;
+        bif.bmiHeader.biHeight = n2;
+        bif.bmiHeader.biPlanes = 1;
+        bif.bmiHeader.biCompression = BI_RGB;
+        bif.bmiHeader.biClrImportant = 0;
+        */
+#ifdef clock_1
+        clock_t start = clock();
+#endif
+        COL c; VEC D;
+        int i; int j;
+        RECT l;
+
+        for (int k = 0; k < n1 * n2; k += pixel) {
+            i = k / n2 * pixel;
+            j = k % n2;
+            D = -cross(DIR, UP) * ((i - (double)n1 / 2) * w / (double)n1) - UP * ((j - (double)n2 / 2) * h / (double)n2) + DIR * d;
+            c = Trace(O, D, 1, positive_inf, 0);  // set_color
+            //HBRUSH hb = CreateSolidBrush(RGB(c[0], c[1], c[2]));
+            l.left = i; l.top = j; l.right = i + pixel;  l.bottom = j + pixel;
+            PaintRect(hmdc, &l, RGB(c[0], c[1], c[2]));
+            //FillRect(hmdc, &l, hb); // this is huge
+            //DeleteObject(hb);
+            // SetPixel(hmdc, i, j, RGB(c[0], c[1], c[2]));
         }
+
+        BitBlt(hdc, 0, 0, n1, n2, hmdc, 0, 0, SRCCOPY); // fast, 0ms
+
+        //GetDIBits(hmdc, bit, 0, 0, 0, &bif, DIB_RGB_COLORS);
+        //GetDIBits(hmdc, bit, 0, n2, im, &bif, DIB_RGB_COLORS);
+        //SetDIBitsToDevice(hdc, 0, 0, n1, n2, 0, 0, 0, n2, im, &bif, DIB_RGB_COLORS);
+        //SelectObject(hmdc, bit);
+
+        //BitBlt(hdc, 0, 0, n1, n2, hmdc, 0, 0, SRCCOPY);
+#ifdef clock_1
+        clock_t end = clock();
+        clock_t result = end - start;
+#endif
+        DeleteObject(bit);
+        DeleteDC(hmdc);
+
+        EndPaint(hWnd, &ps);
+        UpdateWindow(hWnd);
     }
-    */
-    VEC ReflectRay(VEC &R, VEC &N) {
-        return  2 * (R * N) * N - R;
-    }
-    VEC ReflectRay(VEC&& R, VEC& N) {
-        return  2 * (R * N) * N - R;
+
+    void CameraRotate(HWND &hWnd) {
+        POINT p;
+        RECT rectangle;
+        LPPOINT point = &p;
+        LPRECT rect = &rectangle;
+        GetCursorPos(point);
+        GetWindowRect(hWnd, rect);
+        int delta_y = point->x - (rect->right + rect->left) / 2;
+        int delta_x = point->y - (rect->bottom + rect->top) / 2;
+        if (abs(DIR[0]) < abs(DIR[2])) {
+            if (DIR[2] > 0) {
+                DIR = normalize(xRotate(delta_x * angle, DIR));
+            }
+            else {
+                DIR = normalize(xRotate(-delta_x * angle, DIR));
+            }
+        }
+        else {
+            if (DIR[0] > 0) {
+                DIR = normalize(zRotate(-delta_x * angle, DIR));
+            }
+            else {
+                DIR = normalize(zRotate(delta_x * angle, DIR));
+            }
+        }
+        DIR = normalize(yRotate(delta_y * angle, DIR));
+
+
+        SetCursorPos((rect->right + rect->left) / 2, (rect->bottom + rect->top) / 2);
     }
 
     void ClosestIntersection(VEC O, VEC V, double t_min, double t_max, GenericObject*& closest_sphere, double& closest_t) {
@@ -704,10 +817,13 @@ public:
         double closest_t = positive_inf;
         GenericObject* closest_sphere = nullptr;
 
-        // spheres (all of them)
-        ClosestIntersection(O, V, t_min, t_max, closest_sphere, closest_t);
+        if (spheres.size() > 0) 
+        {
+            ClosestIntersection(O, V, t_min, t_max, closest_sphere, closest_t);
+        }
 
-        if (closest_sphere == nullptr) {
+        if (closest_sphere == nullptr) 
+        {
             return BG_C;
         }
 
@@ -728,18 +844,3 @@ public:
         return (1 - r) * local_color + r * reflected_color;
     }
 };
-/*
-int main() {
-    Render r;
-    Picture p;
-    for (int i = 0; i < n1; i++) {
-        for (int j = 0; j < n2; j++) {
-            VEC D = { (i - (double)n1 / 2) * (double)w / (double)n1,
-                        -(j - (double)n2 / 2) * (double)h / (double)n2, (double)d };
-            VEC O = { 0.0, 0.0, 0.0 };
-            p.set_color(i, j, r.Trace(O, D, 1, positive_inf, 4));
-        }
-    }
-    return 0;
-}
-*/
