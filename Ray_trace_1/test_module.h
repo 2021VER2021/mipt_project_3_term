@@ -488,7 +488,7 @@ class Render final {
     {
          new SphereObj({0, 0, 15}, 2, BLUE, 500, 0.2),
          new SphereObj({4, -2, 20}, 1.5, RED, 100, 0),
-         new PlaneObj({0, 1, 0}, {0, -3, 10}, {255, 255, 255}, 1, 0)
+         new PlaneObj({0, 1, 0}, {0, -3, 10}, {100, 100, 100}, 0.1, 0.1)
     };
 
     //std::vector<GenericObject*> spheres;

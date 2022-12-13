@@ -211,7 +211,7 @@ public:
 
                 double n_dot_l = N * L;
                 if (n_dot_l > 0) {
-                    if ((abs(N) != 0) and (abs(L) != 0)) {
+                    if ((N*N != 0) and (L*L != 0)) {
                         i += Light.intensity * n_dot_l / abs(N) / abs(L);
                     }
                 }
@@ -219,7 +219,7 @@ public:
                 if (s != -1) {
                     VEC R = ReflectRay(L, N);
                     double r_dot_v = (R * V);
-                    if ((r_dot_v > 0) and (abs(R) != 0) and (abs(V) != 0)) {
+                    if ((r_dot_v > 0) and (R*R != 0) and (V*V != 0)) {
                         i += Light.intensity * std::pow(r_dot_v / (abs(R) * abs(V)), s);
                     }
                 }
@@ -244,7 +244,7 @@ public:
         VEC P = O - (-closest_t) * V;
         VEC N = closest_sphere->get_norm(P);
 
-        if (abs(N) != 0) { N = (1 / abs(N)) * N; }
+        if (N*N != 0) { N = (1 / abs(N)) * N; }
 
         COL local_color = ComputeLightDop(P, N, -V, closest_sphere->get_specular()) * closest_sphere->get_color();
 
