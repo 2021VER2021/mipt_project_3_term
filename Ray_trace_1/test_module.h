@@ -41,12 +41,15 @@ MATR Gram =
     std::array<double, 3>{0, 1, 0},
     std::array<double, 3>{0, 0, 1}
 };
+
+// These are colors, RGB format
 const COL SadBROWN = {139, 69, 13};
 const COL GreenYellow = {86, 127, 23};
 const COL RED = { 250, 0, 0 };    // Map? maybe
 const COL BLUE = { 0, 0, 250 };
 const COL YELLOW = { 250, 250, 0 };
 const COL BG_C = { 0, 191, 255 };
+const COL LightCoral = { 240, 128, 128 };
 
 VEC operator - (VEC v1, VEC v2) {
     VEC V = { v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2] };
@@ -294,25 +297,22 @@ public:
 /// </summary>
 class GenericObject {
 protected:
-    COL* color;
-    double* reflective; // how it matt or glossy (-1 - matt, 0-10000 - glossy)
-    double* specular;   // reflections on/off and how effective
+    COL color;
+    double reflective; // how it matt or glossy (-1 - matt, 0-10000 - glossy)
+    double specular;   // reflections on/off and how effective
 public:
     GenericObject(COL& c, double& refl, double& spec) {
-        color = new COL;         *color = c;
-        reflective = new double; *reflective = refl;
-        specular = new double;   *specular = spec;
+        color = c;
+        reflective = refl;
+        specular = spec;
     };
-    GenericObject(GenericObject& t) : GenericObject(*t.color, *t.reflective, *t.specular) {}
+    GenericObject(GenericObject& t) : GenericObject(t.color, t.reflective, t.specular) {}
     GenericObject(GenericObject&& t) {
-        color = t.color; t.color = nullptr;
-        reflective = t.reflective; t.reflective = nullptr;
-        specular = t.specular; t.specular = nullptr;
+        color = t.color;
+        reflective = t.reflective;
+        specular = t.specular;
     }
     ~GenericObject() {
-        delete color;
-        delete reflective;
-        delete specular;
     }
     /// <summary>
     /// Function calculates closest intercection for ray (actually line) and object 
@@ -331,26 +331,24 @@ public:
 
 class SphereObj : public GenericObject {
 protected:
-    VEC* center;
-    double* radius;
+    VEC center;
+    double radius;
 public:
     SphereObj(VEC v, double r, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
-        radius = new double; *radius = r;
-        center = new VEC; *center = v;
+        radius = r;
+        center = v;
     };
     SphereObj(VEC v, double r, COL c, double spec) : SphereObj(v, r, c, spec, 0.0) {};
     SphereObj(VEC v, double r, COL c) : SphereObj(v, r, c, -1.0) {};
 
-    SphereObj(SphereObj const& t) : SphereObj(*t.center, *t.radius, *t.color, *t.specular, *t.reflective) {};
+    SphereObj(SphereObj const& t) : SphereObj(t.center, t.radius, t.color, t.specular, t.reflective) {};
 
     SphereObj(SphereObj&& t) : GenericObject(t) {// may not work as intended
-        center = t.center; t.center = nullptr;
-        radius = t.radius; t.radius = nullptr;
+        center = t.center;
+        radius = t.radius;
     }
 
     ~SphereObj() {
-        delete center;
-        delete radius;
     };
 
 
@@ -384,8 +382,8 @@ public:
     }
 
     virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
-        VEC C = *center;
-        double r = *radius;
+        VEC C = center;
+        double r = radius;
         VEC OC = O - C;
         double k1 = V * V;
         double k2 = 2 * (OC * V);
@@ -412,36 +410,34 @@ public:
     };
 
     virtual COL get_color() override {
-        return *GenericObject::color;
+        return GenericObject::color;
     }
     virtual double get_reflective() override {
-        return *GenericObject::reflective;
+        return GenericObject::reflective;
     }
     virtual double get_specular() override {
-        return *GenericObject::specular;
+        return GenericObject::specular;
     }
     VEC get_center() {
-        return *center;
+        return center;
     }
     virtual VEC get_norm(VEC P) override {
-        VEC N = P - *center;
+        VEC N = P - center;
         return N;
     }
 };
 
 class PlaneObj : public GenericObject {
 protected:
-    VEC *norm;
-    VEC *param;
+    VEC norm;
+    VEC param;
 public:
     PlaneObj(VEC norm, VEC param, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
-        PlaneObj::norm = new VEC; *PlaneObj::norm = norm;
-        PlaneObj::param = new VEC; *PlaneObj::param = param;
+        PlaneObj::norm = norm;
+        PlaneObj::param = param;
     }
-    PlaneObj(PlaneObj const& t) : PlaneObj(*t.norm, *t.param, *t.color, *t.specular, *t.reflective) {};
+    PlaneObj(PlaneObj const& t) : PlaneObj(t.norm, t.param, t.color, t.specular, t.reflective) {};
     ~PlaneObj() {
-        delete norm;
-        delete param;
     }
 
     PlaneObj& operator = (PlaneObj const& s) {
@@ -455,12 +451,12 @@ public:
     }
 
     virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
-        double dot = *norm * V;
+        double dot = norm * V;
         double t1 = positive_inf;
         closest_t = positive_inf;
         if (abs(dot) >= epsilon) {
-            VEC W = O-*param;
-            double fac = -(*norm * W)/dot;
+            VEC W = O-param;
+            double fac = -(norm * W)/dot;
             if (fac > 0) {
                 t1 = fac;
             }
@@ -471,38 +467,34 @@ public:
     }
 
     virtual VEC get_norm(VEC P) override {
-        return *norm;
+        return norm;
     }
     virtual COL get_color() override {
-        return *GenericObject::color;
+        return GenericObject::color;
     }
     virtual double get_reflective() override {
-        return *GenericObject::reflective;
+        return GenericObject::reflective;
     }
     virtual double get_specular() override {
-        return *GenericObject::specular;
+        return GenericObject::specular;
     }
 };
 
 class TriangleObj : public GenericObject {
 protected:
-    VEC* norm;
-    VEC* point_1;  //FIXED
-    VEC* point_2;
-    VEC* point_3;
+    VEC norm;
+    VEC point_1;  //FIXED
+    VEC point_2;
+    VEC point_3;
 public:
     TriangleObj(VEC Point_1, VEC Point_2, VEC Point_3, COL c, double spec, double refl): GenericObject(c, refl, spec) {
-        norm = new VEC; *norm = cross(Point_2 - Point_1, Point_3 - Point_1);
-        point_1 = new VEC; *point_1 = Point_1;
-        point_2 = new VEC; *point_2 = Point_2;
-        point_3 = new VEC; *point_3 = Point_3;
+        norm = cross(Point_2 - Point_1, Point_3 - Point_1);
+        point_1 = Point_1;
+        point_2 = Point_2;
+        point_3 = Point_3;
     }
-    TriangleObj(TriangleObj const& t) : TriangleObj(*t.point_1, *t.point_2, *t.point_3, *t.color, *t.specular, *t.reflective) {};
+    TriangleObj(TriangleObj const& t) : TriangleObj(t.point_1, t.point_2, t.point_3, t.color, t.specular, t.reflective) {};
     ~TriangleObj() {
-        delete norm;
-        delete point_1;
-        delete point_2;
-        delete point_3;
     }
 
     TriangleObj& operator = (TriangleObj const& s) {
@@ -518,15 +510,15 @@ public:
     }
 
     virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
-        VEC e1 = *point_2 - *point_1;
-        VEC e2 = *point_3 - *point_1;
+        VEC e1 = point_2 - point_1;
+        VEC e2 = point_3 - point_1;
         VEC pvec = cross(V, e2);
         double det = (e1 * pvec);
         double t = positive_inf;
         closest_t = positive_inf;
         if (!(det < epsilon && det > -epsilon)) {
             double inv_det = 1 / det;
-            VEC tvec = O - *point_1;
+            VEC tvec = O - point_1;
             double u = (tvec * pvec) * inv_det;
             if (!(u < 0 || u > 1)) {
                 VEC qvec = cross(tvec, e1);
@@ -542,26 +534,26 @@ public:
     }
 
     virtual VEC get_norm(VEC P) override {
-        return *norm;
+        return norm;
     }
     virtual COL get_color() override {
-        return *GenericObject::color;
+        return GenericObject::color;
     }
     virtual double get_reflective() override {
-        return *GenericObject::reflective;
+        return GenericObject::reflective;
     }
     virtual double get_specular() override {
-        return *GenericObject::specular;
+        return GenericObject::specular;
     }
 };
 
 class RectangleObj : public GenericObject {
 protected:
-    VEC* point_0;
-    VEC* point_1;  
-    VEC* point_2;
-    VEC* point_3;
-    VEC* norm;
+    VEC point_0;
+    VEC point_1;  
+    VEC point_2;
+    VEC point_3;
+    VEC norm;
 public:
     /// <summary>
     /// point format:
@@ -570,19 +562,14 @@ public:
     /// 3-----4
     /// </summary>
     RectangleObj(VEC Point_1, VEC Point_2, VEC Point_3, VEC Point_4, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
-        point_0 = new VEC; *point_0 = Point_1;
-        point_1 = new VEC; *point_1 = Point_2;
-        point_2 = new VEC; *point_2 = Point_3;
-        point_3 = new VEC; *point_3 = Point_4;
-        norm = new VEC; *norm = normalize(cross(Point_2 - Point_1, Point_3 - Point_1));
+        point_0 = Point_1;
+        point_1 = Point_2;
+        point_2 = Point_3;
+        point_3 = Point_4;
+        norm = normalize(cross(Point_2 - Point_1, Point_3 - Point_1));
     }
-    RectangleObj(RectangleObj const& t) : RectangleObj(*t.point_0, *t.point_1, *t.point_2, *t.point_3, *t.color, *t.specular, *t.reflective) {};
+    RectangleObj(RectangleObj const& t) : RectangleObj(t.point_0, t.point_1, t.point_2, t.point_3, t.color, t.specular, t.reflective) {};
     ~RectangleObj() {
-        delete norm;
-        delete point_0;
-        delete point_1;
-        delete point_2;
-        delete point_3;
     }
     RectangleObj& operator = (RectangleObj const& s) {
         RectangleObj tmp(s);
@@ -597,15 +584,15 @@ public:
         return *this;
     }
     virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
-        VEC e1 = *point_1 - *point_0;
-        VEC e2 = *point_2 - *point_0;
+        VEC e1 = point_1 - point_0;
+        VEC e2 = point_2 - point_0;
         VEC pvec = cross(V, e2);
         double det = (e1 * pvec);
         double t = positive_inf;
         closest_t = positive_inf;
         if (!(det < epsilon && det > -epsilon)) {
             double inv_det = 1 / det;
-            VEC tvec = O - *point_0;
+            VEC tvec = O - point_0;
             double u = (tvec * pvec) * inv_det;
             if (!(u < 0 || u > 1)) {
                 VEC qvec = cross(tvec, e1);
@@ -618,14 +605,14 @@ public:
         if ((t >= t_min) && (t <= t_max)) {
             closest_t = t;
         }
-        e1 = *point_2 - *point_1;
-        e2 = *point_3 - *point_1;
+        e1 = point_2 - point_1;
+        e2 = point_3 - point_1;
         pvec = cross(V, e2);
         det = (e1 * pvec);
         t = positive_inf;
         if (!(det < epsilon && det > -epsilon)) {
             double inv_det = 1 / det;
-            VEC tvec = O - *point_1;
+            VEC tvec = O - point_1;
             double u = (tvec * pvec) * inv_det;
             if (!(u < 0 || u > 1)) {
                 VEC qvec = cross(tvec, e1);
@@ -641,16 +628,16 @@ public:
     }
 
     virtual VEC get_norm(VEC P) override {
-        return -*norm;
+        return -norm;
     }
     virtual COL get_color() override {
-        return *GenericObject::color;
+        return GenericObject::color;
     }
     virtual double get_reflective() override {
-        return *GenericObject::reflective;
+        return GenericObject::reflective;
     }
     virtual double get_specular() override {
-        return *GenericObject::specular;
+        return GenericObject::specular;
     }
 };
 /// <summary>
@@ -667,7 +654,7 @@ public:
         Point_1 + (UP * (Point_2 - Point_1)) * UP,
         Point_2,
         c, spec, refl) {}
-    WallObj(WallObj const& t) : RectangleObj(*t.point_0, *t.point_1, *t.point_2, *t.point_3, *t.color, *t.specular, *t.reflective) {};
+    WallObj(WallObj const& t) : RectangleObj(t.point_0, t.point_1, t.point_2, t.point_3, t.color, t.specular, t.reflective) {};
     WallObj& operator = (WallObj const& s) {
         WallObj tmp(s);
         std::swap(this->norm, tmp.norm);
@@ -719,6 +706,14 @@ public:
 
     void set_light(LightObj* object) {
         lights.push_back(*object);
+    }
+
+    void set_position(VEC v) {
+        O = v;
+    }
+
+    void set_direction(VEC v) {
+        DIR = normalize(v);
     }
     
     GenericObject* get_object(int id) { // FIXIT (pointless)
@@ -825,7 +820,7 @@ public:
             PaintRect(hmdc, &l, RGB(c[0], c[1], c[2]));
             //FillRect(hmdc, &l, hb); // this is huge
             //DeleteObject(hb);
-            // SetPixel(hmdc, i, j, RGB(c[0], c[1], c[2]));
+            //SetPixel(hmdc, i, j, RGB(c[0], c[1], c[2]));
         }
 
         BitBlt(hdc, 0, 0, n1, n2, hmdc, 0, 0, SRCCOPY); // fast, 0ms
@@ -903,8 +898,7 @@ public:
         double i = 0.0;
 
         // lights - vector<LightObj>
-        for (int j = 0; j < lights.size(); j++) {
-            LightObj Light = lights[j];
+        for (LightObj &Light: lights) {
             if (Light.get_type() == 'a') {
                 i += Light.get_intensity();
             }
