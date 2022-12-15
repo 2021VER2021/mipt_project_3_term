@@ -11,8 +11,8 @@
 int const MAX_THREADS = 3;
 #endif
 
-int const WIDTH = 30;
-int const HEIGHT = 30;
+int const WIDTH = 100;
+int const HEIGHT = 100;
 
 int n1 = 300;  //  rename?
 int n2 = 200;
@@ -22,6 +22,7 @@ double  w = d;  // params of FOV and scaling screen
 double h = (double)n2/n1 * d;  // params of FOV and scaling screen
 double const positive_inf = 10000000;
 double epsilon = 0.00001;
+double ray_epsilon = 0.01;
 using VEC = std::array<double, 3>;
 using COL_t = BYTE;
 using COL = std::array<COL_t, 3>;
@@ -39,7 +40,8 @@ MATR Gram =
     std::array<double, 3>{0, 1, 0},
     std::array<double, 3>{0, 0, 1}
 };
-
+const COL SadBROWN = {139, 69, 13};
+const COL GreenYellow = {86, 127, 23};
 const COL RED = { 250, 0, 0 };    // Map? maybe
 const COL BLUE = { 0, 0, 250 };
 const COL YELLOW = { 250, 250, 0 };
@@ -131,6 +133,9 @@ VEC normalize(VEC&& v) {
     VEC v1 = (1 / abs(v)) * v;
     return v1;
 }
+// Important part of orientation
+VEC UP = normalize({ 0, 1, 0 });
+
 /// <summary>
 ///  Rotation around x axe
 /// </summary>
@@ -324,6 +329,7 @@ public:
 };
 
 class SphereObj : public GenericObject {
+protected:
     VEC* center;
     double* radius;
 public:
@@ -423,7 +429,7 @@ public:
 };
 
 class PlaneObj : public GenericObject {
-private:
+protected:
     VEC *norm;
     VEC *param;
 public:
@@ -478,19 +484,19 @@ public:
 };
 
 class TriangleObj : public GenericObject {
-private:
+protected:
     VEC* norm;
     VEC* point_1;  //FIXED
     VEC* point_2;
     VEC* point_3;
 public:
-    TriangleObj(VEC normal, VEC Point_1, VEC Point_2, VEC Point_3, COL c, double spec, double refl): GenericObject(c, refl, spec) {
-        norm = new VEC; *norm = normal;
+    TriangleObj(VEC Point_1, VEC Point_2, VEC Point_3, COL c, double spec, double refl): GenericObject(c, refl, spec) {
+        norm = new VEC; *norm = cross(Point_2 - Point_1, Point_3 - Point_1);
         point_1 = new VEC; *point_1 = Point_1;
         point_2 = new VEC; *point_2 = Point_2;
         point_3 = new VEC; *point_3 = Point_3;
     }
-    TriangleObj(TriangleObj const& t) : TriangleObj(*t.norm, *t.point_1, *t.point_2, *t.point_3, *t.color, *t.specular, *t.reflective) {};
+    TriangleObj(TriangleObj const& t) : TriangleObj(*t.point_1, *t.point_2, *t.point_3, *t.color, *t.specular, *t.reflective) {};
     ~TriangleObj() {
         delete norm;
         delete point_1;
@@ -548,21 +554,141 @@ public:
     }
 };
 
+class RectangleObj : public GenericObject {
+protected:
+    VEC* point_0;
+    VEC* point_1;  
+    VEC* point_2;
+    VEC* point_3;
+    VEC* norm;
+public:
+    /// <summary>
+    /// point format:
+    /// 1-----2
+    /// |-----|
+    /// 3-----4
+    /// </summary>
+    RectangleObj(VEC Point_1, VEC Point_2, VEC Point_3, VEC Point_4, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
+        point_0 = new VEC; *point_0 = Point_1;
+        point_1 = new VEC; *point_1 = Point_2;
+        point_2 = new VEC; *point_2 = Point_3;
+        point_3 = new VEC; *point_3 = Point_4;
+        norm = new VEC; *norm = normalize(cross(Point_2 - Point_1, Point_3 - Point_1));
+    }
+    RectangleObj(RectangleObj const& t) : RectangleObj(*t.point_0, *t.point_1, *t.point_2, *t.point_3, *t.color, *t.specular, *t.reflective) {};
+    ~RectangleObj() {
+        delete norm;
+        delete point_0;
+        delete point_1;
+        delete point_2;
+        delete point_3;
+    }
+    RectangleObj& operator = (RectangleObj const& s) {
+        RectangleObj tmp(s);
+        std::swap(this->norm, tmp.norm);
+        std::swap(this->point_0, tmp.point_0);
+        std::swap(this->point_1, tmp.point_1);
+        std::swap(this->point_2, tmp.point_2);
+        std::swap(this->point_3, tmp.point_3);
+        std::swap(this->color, tmp.color);
+        std::swap(this->reflective, tmp.reflective);
+        std::swap(this->specular, tmp.specular);
+        return *this;
+    }
+    virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
+        VEC e1 = *point_1 - *point_0;
+        VEC e2 = *point_2 - *point_0;
+        VEC pvec = cross(V, e2);
+        double det = (e1 * pvec);
+        double t = positive_inf;
+        closest_t = positive_inf;
+        if (!(det < epsilon && det > -epsilon)) {
+            double inv_det = 1 / det;
+            VEC tvec = O - *point_0;
+            double u = (tvec * pvec) * inv_det;
+            if (!(u < 0 || u > 1)) {
+                VEC qvec = cross(tvec, e1);
+                double v = (V * qvec) * inv_det;
+                if (!(v < 0 || v + u > 1)) {
+                    t = (e2 * qvec) * inv_det;
+                }
+            }
+        }
+        if ((t >= t_min) && (t <= t_max)) {
+            closest_t = t;
+        }
+        e1 = *point_2 - *point_1;
+        e2 = *point_3 - *point_1;
+        pvec = cross(V, e2);
+        det = (e1 * pvec);
+        t = positive_inf;
+        if (!(det < epsilon && det > -epsilon)) {
+            double inv_det = 1 / det;
+            VEC tvec = O - *point_1;
+            double u = (tvec * pvec) * inv_det;
+            if (!(u < 0 || u > 1)) {
+                VEC qvec = cross(tvec, e1);
+                double v = (V * qvec) * inv_det;
+                if (!(v < 0 || v + u > 1)) {
+                    t = (e2 * qvec) * inv_det;
+                }
+            }
+        }
+        if (((t >= t_min) && (t <= t_max)) and (t < closest_t)) {
+            closest_t = t;
+        }
+    }
 
-
+    virtual VEC get_norm(VEC P) override {
+        return *norm;
+    }
+    virtual COL get_color() override {
+        return *GenericObject::color;
+    }
+    virtual double get_reflective() override {
+        return *GenericObject::reflective;
+    }
+    virtual double get_specular() override {
+        return *GenericObject::specular;
+    }
+};
+/// <summary>
+/// point_format:
+/// -----2
+/// |    |
+/// 1-----
+/// </summary>
+class WallObj : public RectangleObj {
+public:
+    WallObj(VEC Point_1, VEC Point_2, COL c, double spec, double refl) : RectangleObj(
+        Point_1,
+        Point_1 + ((Point_2 - Point_1) - (UP * (Point_2 - Point_1)) * UP),
+        Point_1 + (UP * (Point_2 - Point_1)) * UP,
+        Point_2,
+        c, refl, spec) {}
+    WallObj(WallObj const& t) : RectangleObj(*t.point_0, *t.point_1, *t.point_2, *t.point_3, *t.color, *t.specular, *t.reflective) {};
+    WallObj& operator = (WallObj const& s) {
+        WallObj tmp(s);
+        std::swap(this->norm, tmp.norm);
+        std::swap(this->point_0, tmp.point_0);
+        std::swap(this->point_1, tmp.point_1);
+        std::swap(this->point_2, tmp.point_2);
+        std::swap(this->point_3, tmp.point_3);
+        std::swap(this->color, tmp.color);
+        std::swap(this->reflective, tmp.reflective);
+        std::swap(this->specular, tmp.specular);
+        return *this;
+    }
+};
 
 class Render final {
     std::vector<GenericObject*>spheres;
-    std::vector<LightObj> lights = {
-        LightObj('a', 0.3),
-        LightObj({1, 1, -2}, 'd', 0.3)
-    };
+    std::vector<LightObj> lights;
 public:
     // render camera motion parameters
     double Pi = 3.1415926536;
-    VEC O = { 0, 0, 0 };                 // Это в общем точка, из которой лучи испускаются
-    VEC DIR = normalize({ 0.1, 0, 1 });  // Looking direction
-    VEC UP = normalize({ 0, 1, 0 });
+    VEC O = { 0, 1, 0 };                 // Это в общем точка, из которой лучи испускаются
+    VEC DIR = normalize({ 0, 0, 1 });  // Looking direction
     double step = 0.5;                   // how much you will move // for debug, all logic must be rewrite
     double angle = 0.005;                // how much you rotate
 
@@ -572,19 +698,13 @@ public:
     WCHAR szWindowClass[MAX_LOADSTRING];            // имя класса главного окна
 
     //~Render() { for (auto i : spheres) { delete i; } } // FIXIT
+    Render(): hInst(nullptr) {};
     Render(HINSTANCE hInstance) {
         hInst = hInstance;
         LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
         LoadStringW(hInstance, IDC_RAYTRACE1, szWindowClass, MAX_LOADSTRING);
     };
 
-    Render operator = (Render r) {
-        spheres.clear();
-        for (auto i : r.spheres) {
-            spheres.push_back(i);
-        }
-        return *this;
-    }
     /// <summary>
     /// Use this function to set objects, that will be in render
     /// If you send object to render, it will now manage memory
@@ -595,6 +715,10 @@ public:
     void set_obj(GenericObject* object) {
         spheres.push_back(object);
     }
+
+    void set_light(LightObj* object) {
+        lights.push_back(*object);
+    }
     
     GenericObject* get_object(int id) { // FIXIT (pointless)
         if (spheres.size() > id) {
@@ -604,8 +728,14 @@ public:
             return nullptr;
         }
     }
-   
 
+    void delete_spheres(){
+        for (auto i : spheres) {
+            delete i;
+        }
+        spheres.clear();
+    }
+   
     ///
     /// Register window class
     /// 
@@ -688,7 +818,7 @@ public:
             i = k / n2 * pixel;
             j = k % n2;
             D = -cross(DIR, UP) * ((i - (double)n1 / 2) * w / (double)n1) - UP * ((j - (double)n2 / 2) * h / (double)n2) + DIR * d;
-            c = Trace(O, D, 1, positive_inf, 0);  // set_color
+            c = Trace(O, D, 1, positive_inf, 1);  // set_color
             //HBRUSH hb = CreateSolidBrush(RGB(c[0], c[1], c[2]));
             l.left = i; l.top = j; l.right = i + pixel;  l.bottom = j + pixel;
             PaintRect(hmdc, &l, RGB(c[0], c[1], c[2]));
@@ -787,7 +917,7 @@ public:
 
                 double closest_t = positive_inf;                                           // parameter of the distamce to the shadow_sphere
                 GenericObject* shadow_sphere = nullptr;                                    // shadow_sphere - object, which will make a shadow
-                ClosestIntersection(P, L, epsilon, positive_inf, shadow_sphere, closest_t);// calculate intersection
+                ClosestIntersection(P, L, ray_epsilon, positive_inf, shadow_sphere, closest_t);// calculate intersection
                 
                 if (shadow_sphere != nullptr) {                                            // if the shadow_sphere != nullptr, then there is a shadow
                     continue;
@@ -827,10 +957,10 @@ public:
             return BG_C;
         }
 
-        VEC P = O - (-closest_t) * V;
+        VEC P = O + closest_t * V;
         VEC N = closest_sphere->get_norm(P);
 
-        if (abs(N) != 0) { N = (1 / abs(N)) * N; }
+        if (abs(N) != 0) { N = normalize(N); }
 
         COL local_color = ComputeLight(P, N, -V, closest_sphere->get_specular()) * closest_sphere->get_color();
 

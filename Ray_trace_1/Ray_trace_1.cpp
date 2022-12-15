@@ -6,25 +6,22 @@
 #define debug
 #define MAX_LOADSTRING 100
 
-
 #include "Ray_trace_1.h"
-//#include "ray_trace.h"
 #include "test_module.h"
-//#include "Header1.h"
 #include <time.h>
 
 LRESULT CALLBACK  WndProc(HWND, UINT, WPARAM, LPARAM);
 
-Render r(nullptr); // Рендер ( это кринж )
+Render r; // Рендер ( это кринж )
 
 #ifdef GPU
 std::vector<COL_t> array_pixel(n1*n2*3);
 concurrency::array<COL_t, 2> array_pixel_gpu(n1* n2, 3, array_pixel.begin(), array_pixel.end());
 //concurrency::array_view<COL_t, 2> array_pixel_gpu(n1 * n2, 3, array_pixel);
-#endif
+#endif 
+
 /// <summary>
 /// main function of the program
-/// Logic code goes here
 /// </summary>
 /// <param name="hInstance"></param>
 /// <param name="hPrevInstance"></param>
@@ -32,9 +29,9 @@ concurrency::array<COL_t, 2> array_pixel_gpu(n1* n2, 3, array_pixel.begin(), arr
 /// <param name="nCmdShow"></param>
 /// <returns></returns>
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-                     _In_opt_ HINSTANCE hPrevInstance,
-                     _In_ LPWSTR    lpCmdLine,
-                     _In_ int       nCmdShow)
+    _In_opt_ HINSTANCE hPrevInstance,
+    _In_ LPWSTR    lpCmdLine,
+    _In_ int       nCmdShow)
 {
     // init
     UNREFERENCED_PARAMETER(hPrevInstance);
@@ -42,10 +39,20 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     r = Render(hInstance); // Рендер (инициализировали)
 
-    // set some objects
-    r.set_obj(new SphereObj({ 0, 0, 15 }, 2, BLUE, 1, 0.2));
-    r.set_obj(new SphereObj({ 4, -2, 20 }, 1.5, RED, 1, 0));
-    r.set_obj(new PlaneObj({ 0, 1, 0 }, { 0, -3, 10 }, { 255, 255, 255 }, 1, 0));
+    // set some objects FIXIT( unique_ptr )
+    //r.set_obj(new SphereObj({ 0, 0, 15 }, 2, { 0, 255, 0 }, 1, 0.1));
+    r.set_obj(new SphereObj({ 4, 1, 20 }, 1.5, GreenYellow, 100, 0.1));  //FIXIT something going wrong here(
+    //r.set_obj(new SphereObj({ 4, 5, 20 }, 1.5, { 185, 65, 37 }, 1, 0.1));
+
+    //r.set_obj(new RectangleObj({ 0, 5, 10 }, { 0, 5, 11 }, { 1, 5, 10 }, { 1, 5, 11 }, {0, 200, 0}, 1, 0.1));
+    r.set_obj(new WallObj({ 2, 0, -2 }, {2, 2, 10}, SadBROWN, 0, 0.2));
+    r.set_obj(new WallObj({ -2, 0, -2 }, { -2, 2, 10 }, SadBROWN, 0, 0.2));
+    //r.set_obj(new TriangleObj({0, 0, 0}, {0, 0, 2}, {-1, 3, 2}, RED, 1, 0));
+    //r.set_obj(new TriangleObj({0, 0, 0}, {0, 0, 2}, {-1, 3, 2}, RED, 1, 0)); 
+    r.set_obj(new PlaneObj({ 0, -1, 0 }, { 0, 0, 0}, { 200, 200, 200 }, 3, 0));
+    r.set_light(new LightObj('a', 0.5));
+    //r.set_light(new LightObj({ 0, 1, -1 }, 'd', 0.2));
+    //r.set_light(new LightObj({ 0, 1, 0 }, 'p', 0.2));
 
 #ifdef OMP
     omp_set_num_threads(MAX_THREADS);
@@ -68,6 +75,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             DispatchMessage(&msg); // диспетчеризация событий
         }
     }
+    r.delete_spheres();
     return (int) msg.wParam;
 }
 
@@ -147,21 +155,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         // x translation
         if (key == 65) {
-            r.O = r.O - r.step * normalize(cross(r.UP, r.DIR));
+            r.O = r.O - r.step * normalize(cross(UP, r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 68) {
-            r.O = r.O + r.step * normalize(cross(r.UP, r.DIR));
+            r.O = r.O + r.step * normalize(cross(UP, r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
 
         // y translation
         if (key == 83) {
-            r.O = r.O + r.step * normalize(cross(cross(r.UP, r.DIR), r.DIR));
+            r.O = r.O + r.step * normalize(cross(cross(UP, r.DIR), r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
         if (key == 87) {
-            r.O = r.O - r.step * normalize(cross(cross(r.UP, r.DIR), r.DIR));
+            r.O = r.O - r.step * normalize(cross(cross(UP, r.DIR), r.DIR));
             InvalidateRect(hWnd, NULL, NULL);
         }
 
