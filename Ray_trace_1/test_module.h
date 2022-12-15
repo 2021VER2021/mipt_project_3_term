@@ -16,7 +16,7 @@ int const HEIGHT = 600;
 
 int n1 = WIDTH;  //  rename?
 int n2 = HEIGHT;
-int depth = 10;
+int depth = 1;
 int pixel = n1 / WIDTH;
 double  d = 1;  // params of FOV and scaling screen // how does it work actually??
 double  w = d;  // params of FOV and scaling screen
