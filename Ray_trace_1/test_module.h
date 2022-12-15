@@ -847,7 +847,8 @@ public:
         UpdateWindow(hWnd);
     }
 
-    void CameraRotate(HWND &hWnd) {
+    void CameraRotate(HWND &hWnd) 
+    {
         POINT p;
         RECT rectangle;
         LPPOINT point = &p;

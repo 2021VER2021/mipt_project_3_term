@@ -44,21 +44,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
   // set some objects FIXIT( unique_ptr )
   //r.set_obj(new SphereObj({ 0, 0, 15 }, 2, { 0, 255, 0 }, 1, 0.1));
-    r.set_obj(new SphereObj({ 1, 1, box_param - coridor_param/2 }, 1, GreenYellow, 5, 0.1));  //FIXIT something going wrong here(
-  //r.set_obj(new SphereObj({ 4, 5, 20 }, 1.5, { 185, 65, 37 }, 1, 0.1));
+    r.set_obj(new SphereObj({ 0.7, 1, 13 }, 1.0, GreenYellow, 5, 0.1));  //FIXIT something going wrong here(
+    r.set_obj(new SphereObj({ -0.7, 1, 13 }, 1.0, GreenYellow, 5, 0.1));
+    r.set_obj(new SphereObj({ 0, 2.0, 13 }, 1.0, GreenYellow, 5, 0.1));
+    r.set_obj(new SphereObj({ 0, 3.0, 13 }, 1.0, GreenYellow, 5, 0.1));
 
   //r.set_obj(new RectangleObj({ 0, 5, 10 }, { 0, 5, 11 }, { 1, 5, 10 }, { 1, 5, 11 }, {0, 200, 0}, 1, 0.1));
   //r.set_obj(new WallObj({ box_param, 0, box_param - coridor_param }, { box_param, 2, -box_param }, SadBROWN, -1, 0));
-    r.set_obj(new WallObj({ box_param, 0, box_param }, { -box_param, 2, box_param }, SadBROWN, 10, 0));
-    r.set_obj(new WallObj({ -box_param, 0, -box_param }, { -box_param, 2, box_param }, SadBROWN, 10, 0));
-    r.set_obj(new WallObj({ -box_param, 0, -box_param }, { box_param, 2, -box_param }, SadBROWN, 10, 0));
-    r.set_obj(new WallObj({ box_param - coridor_param, 0, box_param - coridor_param }, { box_param - coridor_param, 2, -box_param + coridor_param}, SadBROWN, 10, 0));
-    r.set_obj(new WallObj({ -box_param, 0, -box_param }, { box_param, 2, -box_param }, SadBROWN, 10, 0));
+    //r.set_obj(new WallObj({ box_param, 0, box_param }, { -box_param, 2, box_param }, SadBROWN, 10, 0));
+    //r.set_obj(new WallObj({ -box_param, 0, -box_param }, { -box_param, 2, box_param }, SadBROWN, 10, 0));
+    //r.set_obj(new WallObj({ -box_param, 0, -box_param }, { box_param, 2, -box_param }, SadBROWN, 10, 0));
+    //r.set_obj(new WallObj({ box_param - coridor_param, 0, box_param - coridor_param }, { box_param - coridor_param, 2, -box_param + coridor_param}, SadBROWN, 10, 0));
+    //r.set_obj(new WallObj({ -box_param, 0, -box_param }, { box_param, 2, -box_param }, SadBROWN, 10, 0));
     //r.set_obj(new TriangleObj({0, 0, 0}, {0, 0, 2}, {-1, 3, 2}, RED, 1, 0));
     //r.set_obj(new TriangleObj({0, 0, 0}, {0, 0, 2}, {-1, 3, 2}, RED, 1, 0)); 
     r.set_obj(new PlaneObj({ 0, -1, 0 }, { 0, 0, 0}, { 200, 100, 100 }, 10, 0.5));
     r.set_light(new LightObj('a', 0.5));
-    //r.set_light(new LightObj({ 0, 1, -1 }, 'd', 0.2));
+    r.set_light(new LightObj({ 0, 1, -1 }, 'd', 0.3));
     //r.set_light(new LightObj({ 0, 1, 0 }, 'p', 0.2));
 
 #ifdef OMP
