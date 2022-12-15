@@ -11,11 +11,12 @@
 int const MAX_THREADS = 3;
 #endif
 
-int const WIDTH = 100;
-int const HEIGHT = 100;
+int const WIDTH = 1000;
+int const HEIGHT = 600;
 
-int n1 = 300;  //  rename?
-int n2 = 200;
+int n1 = WIDTH;  //  rename?
+int n2 = HEIGHT;
+int depth = 10;
 int pixel = n1 / WIDTH;
 double  d = 1;  // params of FOV and scaling screen // how does it work actually??
 double  w = d;  // params of FOV and scaling screen
@@ -640,7 +641,7 @@ public:
     }
 
     virtual VEC get_norm(VEC P) override {
-        return *norm;
+        return -*norm;
     }
     virtual COL get_color() override {
         return *GenericObject::color;
@@ -665,7 +666,7 @@ public:
         Point_1 + ((Point_2 - Point_1) - (UP * (Point_2 - Point_1)) * UP),
         Point_1 + (UP * (Point_2 - Point_1)) * UP,
         Point_2,
-        c, refl, spec) {}
+        c, spec, refl) {}
     WallObj(WallObj const& t) : RectangleObj(*t.point_0, *t.point_1, *t.point_2, *t.point_3, *t.color, *t.specular, *t.reflective) {};
     WallObj& operator = (WallObj const& s) {
         WallObj tmp(s);
@@ -786,10 +787,10 @@ public:
         RECT rect;
         GetClientRect(hWnd, &rect);
 
-        pixel = rect.right / WIDTH;
-        n1 = rect.right - rect.right % pixel + pixel;
-        n2 = rect.bottom - rect.bottom % pixel + pixel;
-        double h = (double)n2 / n1 * d;
+        //pixel = rect.right / WIDTH;
+        //n1 = rect.right - rect.right % pixel + pixel;
+        //n2 = rect.bottom - rect.bottom % pixel + pixel;
+        //double h = (double)n2 / n1 * d;
 
 
         HDC hmdc = CreateCompatibleDC(hdc);
@@ -818,7 +819,7 @@ public:
             i = k / n2 * pixel;
             j = k % n2;
             D = -cross(DIR, UP) * ((i - (double)n1 / 2) * w / (double)n1) - UP * ((j - (double)n2 / 2) * h / (double)n2) + DIR * d;
-            c = Trace(O, D, 1, positive_inf, 1);  // set_color
+            c = Trace(O, D, 0.01, positive_inf, depth);  // set_color
             //HBRUSH hb = CreateSolidBrush(RGB(c[0], c[1], c[2]));
             l.left = i; l.top = j; l.right = i + pixel;  l.bottom = j + pixel;
             PaintRect(hmdc, &l, RGB(c[0], c[1], c[2]));
