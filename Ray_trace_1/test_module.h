@@ -11,12 +11,12 @@
 int const MAX_THREADS = 3;
 #endif
 
-int const WIDTH = 1000;
-int const HEIGHT = 600;
+int const WIDTH = 200;
+int const HEIGHT = 200;
 
 int n1 = WIDTH;  //  rename?
 int n2 = HEIGHT;
-int depth = 10;
+int depth = 1;
 int pixel = n1 / WIDTH;
 double  d = 1;  // params of FOV and scaling screen // how does it work actually??
 double  w = d;  // params of FOV and scaling screen
@@ -24,7 +24,14 @@ double h = (double)n2/n1 * d;  // params of FOV and scaling screen
 double const positive_inf = 10000000;
 double epsilon = 0.00001;
 double ray_epsilon = 0.01;
-using VEC = std::array<double, 3>;
+
+struct vector3 { // implementation of 3D vector
+    double x;
+    double y;
+    double z;
+};
+using VEC3 = vector3; // symbol for real 3D space vector
+using VEC = std::array<double, 3>; // math vector (eg in matrices)
 using COL_t = BYTE;
 using COL = std::array<COL_t, 3>;
 using MATR = std::array<VEC, 3>;
@@ -51,22 +58,22 @@ const COL YELLOW = { 250, 250, 0 };
 const COL BG_C = { 0, 191, 255 };
 const COL LightCoral = { 240, 128, 128 };
 
-VEC operator - (VEC v1, VEC v2) {
-    VEC V = { v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2] };
+VEC3 operator - (VEC3 v1, VEC3 v2) {
+    VEC3 V = { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
     return V;
 }
-VEC operator - (VEC v1) {
-    VEC V = { -v1[0], -v1[1], -v1[2] };
+VEC3 operator - (VEC3 v1) {
+    VEC3 V = { -v1.x, -v1.y, -v1.z };
     return V;
 }
-VEC operator + (VEC v1, VEC v2) {
+VEC3 operator + (VEC3 v1, VEC3 v2) {
     return v1 - (-v2);
 }
 
-VEC operator * (MATR m, VEC v1) {
-    VEC v2 = { m[0][0] * v1[0] + m[0][1] * v1[1] + m[0][2] * v1[2],
-               m[1][0] * v1[0] + m[1][1] * v1[1] + m[1][2] * v1[2],
-               m[2][0] * v1[0] + m[2][1] * v1[1] + m[2][2] * v1[2]};
+VEC3 operator * (MATR m, VEC3 v1) {
+    VEC3 v2 = { m[0][0] * v1.x + m[0][1] * v1.y + m[0][2] * v1.z,
+               m[1][0] * v1.x + m[1][1] * v1.y + m[1][2] * v1.z,
+               m[2][0] * v1.x + m[2][1] * v1.y + m[2][2] * v1.z};
     return v2;
 }
 MATR operator * (MATR m1, MATR m2) {
@@ -89,7 +96,7 @@ MATR operator * (MATR m1, MATR m2) {
     return m3;
 }
 #ifdef OMP
-double operator * (VEC v1, VEC v2) {
+double operator * (VEC3 v1, VEC3 v2) {
     double answer = 0;
 #pragma omp parallel for reduction(+:answer)
         for (int i = 0; i < 3; i++) {
@@ -99,46 +106,46 @@ double operator * (VEC v1, VEC v2) {
     return answer;
 }
 #else
-double operator * (VEC v1, VEC v2) {
+double operator * (VEC3 v1, VEC3 v2) {
     //v2 = Gram * v2;  // epic boost
-    double answer = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+    double answer = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
     return answer;
 }
 #endif
 
-VEC operator * (double v1, VEC v2) {
-    VEC V = { v2[0] * v1, v2[1] * v1, v2[2] * v1 };
+VEC3 operator * (double v1, VEC3 v2) {
+    VEC3 V = { v2.x * v1, v2.y * v1, v2.z * v1 };
     return V;
 }
-VEC operator * (VEC v1, double v2) {
+VEC3 operator * (VEC3 v1, double v2) {
     return v2 * v1;
 }
-COL operator * (double v1, COL v2) {
-    COL V = { static_cast<COL_t>(v2[0] * v1), static_cast<COL_t>(v2[1] * v1), static_cast<COL_t>(v2[2] * v1) };
-    return V;
+COL operator * (double c1, COL c2) {
+    COL c = { static_cast<COL_t>(c2[0] * c1), static_cast<COL_t>(c2[1] * c1), static_cast<COL_t>(c2[2] * c1) };
+    return c;
 }
 COL operator + (COL c1, COL c2) {
     return { static_cast<COL_t>(c1[0] + c2[0]), static_cast<COL_t>(c1[1] + c2[1]), static_cast<COL_t>(c1[2] + c2[2]) };
 }
-double abs(VEC &v1) {
+double abs(VEC3 &v1) {
     double V = v1 * v1;
     return std::sqrt(V);
 }
 
-VEC cross(VEC v1, VEC v2) {
-    VEC V = { v1[1] * v2[2] - v1[2] * v2[1], v2[0] * v1[2] - v1[0] * v2[2], v1[0] * v2[1] - v2[0] * v1[1] };
+VEC3 cross(VEC3 v1, VEC3 v2) {
+    VEC3 V = { v1.y * v2.z - v1.z * v2.y, v2.x * v1.z - v1.x * v2.z, v1.x * v2.y - v2.x * v1.y };
     return V;
 }
 
-VEC normalize(VEC& v) {
+VEC3 normalize(VEC3& v) {
     return (1 / abs(v)) * v;
 }
-VEC normalize(VEC&& v) {
-    VEC v1 = (1 / abs(v)) * v;
+VEC3 normalize(VEC3&& v) {
+    VEC3 v1 = (1 / abs(v)) * v;
     return v1;
 }
 // Important part of orientation
-VEC UP = normalize({ 0, 1, 0 });
+VEC3 UP = normalize({ 0, 1, 0 });
 
 /// <summary>
 ///  Rotation around x axe
@@ -146,14 +153,14 @@ VEC UP = normalize({ 0, 1, 0 });
 /// <param name="angle"></param>
 /// <param name="v"></param>
 /// <returns></returns>
-VEC xRotate(double angle, VEC v) {   // FIXIT
+VEC3 xRotate(double angle, VEC3 v) {   // FIXIT
     MATR xRotation = { 
         VEC{1, 0, 0},
         VEC{0, std::cos(angle), -std::sin(angle)},
         VEC{ 0, std::sin(angle), std::cos(angle)}};
     return xRotation * v;
 }
-VEC yRotate(double angle, VEC v) {    // FIXIT
+VEC3 yRotate(double angle, VEC3 v) {    // FIXIT
     MATR yRotation = { 
         VEC{std::cos(angle), 0, std::sin(angle)},
         VEC{0, 1, 0},
@@ -161,14 +168,14 @@ VEC yRotate(double angle, VEC v) {    // FIXIT
     return yRotation * v;
 }
 
-VEC zRotate(double angle, VEC v) {    // FIXIT
+VEC3 zRotate(double angle, VEC3 v) {    // FIXIT
     MATR zRotation = {
         VEC{std::cos(angle), -std::sin(angle), 0},
         VEC{std::sin(angle), std::cos(angle), 0},
         VEC{0, 0, 1} };
     return zRotation * v;
 }
-VEC xyRotate(double angle_x, double angle_y, VEC v) { // FIXIT
+VEC3 xyRotate(double angle_x, double angle_y, VEC3 v) { // FIXIT
     MATR xRotation = {
         VEC{1, 0, 0},
         VEC{0, std::cos(angle_x), -std::sin(angle_x)},
@@ -186,11 +193,11 @@ VEC xyRotate(double angle_x, double angle_y, VEC v) { // FIXIT
     /// <param name="R"></param>
     /// <param name="N"></param>
     /// <returns></returns>
-VEC ReflectRay(VEC& R, VEC& N) {
+VEC3 ReflectRay(VEC3& R, VEC3& N) {
     return  2 * (R * N) * N - R;
 }
 
-VEC ReflectRay(VEC&& R, VEC& N) {
+VEC3 ReflectRay(VEC3&& R, VEC3& N) {
     return  2 * (R * N) * N - R;
 }
 
@@ -223,7 +230,7 @@ public:
 /// </summary>
 class LightObj {
 protected:
-    VEC* d;           // direction (for direct) or position (for point)
+    VEC3* d;           // direction (for direct) or position (for point)
     char* type;
     double* intensity;
 public:
@@ -233,8 +240,8 @@ public:
     /// <param name="v"></param>
     /// <param name="s"></param>
     /// <param name="i"></param>
-    LightObj(VEC const& v, char const& s, double const& i) {
-        d = new VEC; *d = v;
+    LightObj(VEC3 const& v, char const& s, double const& i) {
+        d = new VEC3; *d = v;
         type = new char; *type = s;
         intensity = new double; *intensity = i;
     };
@@ -281,7 +288,7 @@ public:
         std::swap(this->intensity, t.intensity);
         return *this;
     }
-    VEC get_d() {
+    VEC3 get_d() {
         return *d;
     }
     char get_type() {
@@ -322,8 +329,8 @@ public:
     /// <param name="t_min - minimum distance for intercection"></param>
     /// <param name="t_max - maximum distance for intercection"></param>
     /// <param name="intersection - function output variable"></param>
-    virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& intersection) = 0;
-    virtual VEC get_norm(VEC P) = 0;
+    virtual void Intercections(VEC3& O, VEC3& V, double& t_min, double& t_max, double& intersection) = 0;
+    virtual VEC3 get_norm(VEC3 P) = 0;
     virtual double get_reflective() = 0;
     virtual double get_specular() = 0;
     virtual COL get_color() = 0;
@@ -331,15 +338,15 @@ public:
 
 class SphereObj : public GenericObject {
 protected:
-    VEC center;
+    VEC3 center;
     double radius;
 public:
-    SphereObj(VEC v, double r, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
+    SphereObj(VEC3 v, double r, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
         radius = r;
         center = v;
     };
-    SphereObj(VEC v, double r, COL c, double spec) : SphereObj(v, r, c, spec, 0.0) {};
-    SphereObj(VEC v, double r, COL c) : SphereObj(v, r, c, -1.0) {};
+    SphereObj(VEC3 v, double r, COL c, double spec) : SphereObj(v, r, c, spec, 0.0) {};
+    SphereObj(VEC3 v, double r, COL c) : SphereObj(v, r, c, -1.0) {};
 
     SphereObj(SphereObj const& t) : SphereObj(t.center, t.radius, t.color, t.specular, t.reflective) {};
 
@@ -381,10 +388,10 @@ public:
         return *this;
     }
 
-    virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
-        VEC C = center;
+    virtual void Intercections(VEC3& O, VEC3& V, double& t_min, double& t_max, double& closest_t) override {
+        VEC3 C = center;
         double r = radius;
-        VEC OC = O - C;
+        VEC3 OC = O - C;
         double k1 = V * V;
         double k2 = 2 * (OC * V);
         double k3 = (OC * OC) - r * r;
@@ -418,21 +425,21 @@ public:
     virtual double get_specular() override {
         return GenericObject::specular;
     }
-    VEC get_center() {
+    VEC3 get_center() {
         return center;
     }
-    virtual VEC get_norm(VEC P) override {
-        VEC N = P - center;
+    virtual VEC3 get_norm(VEC3 P) override {
+        VEC3 N = P - center;
         return N;
     }
 };
 
 class PlaneObj : public GenericObject {
 protected:
-    VEC norm;
-    VEC param;
+    VEC3 norm;
+    VEC3 param;
 public:
-    PlaneObj(VEC norm, VEC param, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
+    PlaneObj(VEC3 norm, VEC3 param, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
         PlaneObj::norm = norm;
         PlaneObj::param = param;
     }
@@ -450,12 +457,12 @@ public:
         return *this;
     }
 
-    virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
+    virtual void Intercections(VEC3& O, VEC3& V, double& t_min, double& t_max, double& closest_t) override {
         double dot = norm * V;
         double t1 = positive_inf;
         closest_t = positive_inf;
         if (abs(dot) >= epsilon) {
-            VEC W = O-param;
+            VEC3 W = O-param;
             double fac = -(norm * W)/dot;
             if (fac > 0) {
                 t1 = fac;
@@ -466,7 +473,7 @@ public:
         }
     }
 
-    virtual VEC get_norm(VEC P) override {
+    virtual VEC3 get_norm(VEC3 P) override {
         return norm;
     }
     virtual COL get_color() override {
@@ -482,12 +489,12 @@ public:
 
 class TriangleObj : public GenericObject {
 protected:
-    VEC norm;
-    VEC point_1;  //FIXED
-    VEC point_2;
-    VEC point_3;
+    VEC3 norm;
+    VEC3 point_1;  //FIXED
+    VEC3 point_2;
+    VEC3 point_3;
 public:
-    TriangleObj(VEC Point_1, VEC Point_2, VEC Point_3, COL c, double spec, double refl): GenericObject(c, refl, spec) {
+    TriangleObj(VEC3 Point_1, VEC3 Point_2, VEC3 Point_3, COL c, double spec, double refl): GenericObject(c, refl, spec) {
         norm = cross(Point_2 - Point_1, Point_3 - Point_1);
         point_1 = Point_1;
         point_2 = Point_2;
@@ -509,19 +516,19 @@ public:
         return *this;
     }
 
-    virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
-        VEC e1 = point_2 - point_1;
-        VEC e2 = point_3 - point_1;
-        VEC pvec = cross(V, e2);
+    virtual void Intercections(VEC3& O, VEC3& V, double& t_min, double& t_max, double& closest_t) override {
+        VEC3 e1 = point_2 - point_1;
+        VEC3 e2 = point_3 - point_1;
+        VEC3 pvec = cross(V, e2);
         double det = (e1 * pvec);
         double t = positive_inf;
         closest_t = positive_inf;
         if (!(det < epsilon && det > -epsilon)) {
             double inv_det = 1 / det;
-            VEC tvec = O - point_1;
+            VEC3 tvec = O - point_1;
             double u = (tvec * pvec) * inv_det;
             if (!(u < 0 || u > 1)) {
-                VEC qvec = cross(tvec, e1);
+                VEC3 qvec = cross(tvec, e1);
                 double v = (V * qvec) * inv_det;
                 if (!(v < 0 || v + u > 1)) {
                     t = (e2 * qvec) * inv_det;
@@ -533,7 +540,7 @@ public:
         }
     }
 
-    virtual VEC get_norm(VEC P) override {
+    virtual VEC3 get_norm(VEC3 P) override {
         return norm;
     }
     virtual COL get_color() override {
@@ -549,11 +556,11 @@ public:
 
 class RectangleObj : public GenericObject {
 protected:
-    VEC point_0;
-    VEC point_1;  
-    VEC point_2;
-    VEC point_3;
-    VEC norm;
+    VEC3 point_0;
+    VEC3 point_1;  
+    VEC3 point_2;
+    VEC3 point_3;
+    VEC3 norm;
 public:
     /// <summary>
     /// point format:
@@ -561,7 +568,7 @@ public:
     /// |-----|
     /// 3-----4
     /// </summary>
-    RectangleObj(VEC Point_1, VEC Point_2, VEC Point_3, VEC Point_4, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
+    RectangleObj(VEC3 Point_1, VEC3 Point_2, VEC3 Point_3, VEC3 Point_4, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
         point_0 = Point_1;
         point_1 = Point_2;
         point_2 = Point_3;
@@ -583,39 +590,17 @@ public:
         std::swap(this->specular, tmp.specular);
         return *this;
     }
-    virtual void Intercections(VEC& O, VEC& V, double& t_min, double& t_max, double& closest_t) override {
-        VEC e1 = point_1 - point_0;
-        VEC e2 = point_2 - point_0;
-        VEC pvec = cross(V, e2);
+    virtual void TriIntersections(VEC3& O, VEC3& V, double& t_min, double& t_max, VEC3&& e1, VEC3&& e2, double& closest_t) {
+        VEC3 pvec = cross(V, e2);
         double det = (e1 * pvec);
         double t = positive_inf;
         closest_t = positive_inf;
         if (!(det < epsilon && det > -epsilon)) {
             double inv_det = 1 / det;
-            VEC tvec = O - point_0;
+            VEC3 tvec = O - point_1;
             double u = (tvec * pvec) * inv_det;
             if (!(u < 0 || u > 1)) {
-                VEC qvec = cross(tvec, e1);
-                double v = (V * qvec) * inv_det;
-                if (!(v < 0 || v + u > 1)) {
-                    t = (e2 * qvec) * inv_det;
-                }
-            }
-        }
-        if ((t >= t_min) && (t <= t_max)) {
-            closest_t = t;
-        }
-        e1 = point_2 - point_1;
-        e2 = point_3 - point_1;
-        pvec = cross(V, e2);
-        det = (e1 * pvec);
-        t = positive_inf;
-        if (!(det < epsilon && det > -epsilon)) {
-            double inv_det = 1 / det;
-            VEC tvec = O - point_1;
-            double u = (tvec * pvec) * inv_det;
-            if (!(u < 0 || u > 1)) {
-                VEC qvec = cross(tvec, e1);
+                VEC3 qvec = cross(tvec, e1);
                 double v = (V * qvec) * inv_det;
                 if (!(v < 0 || v + u > 1)) {
                     t = (e2 * qvec) * inv_det;
@@ -626,8 +611,12 @@ public:
             closest_t = t;
         }
     }
+    virtual void Intercections(VEC3& O, VEC3& V, double& t_min, double& t_max, double& closest_t) override {
+        TriIntersections(O, V, t_min, t_max, point_1 - point_0, point_2 - point_0, closest_t);
+        TriIntersections(O, V, t_min, t_max, point_2 - point_1, point_3 - point_1, closest_t);
+    }
 
-    virtual VEC get_norm(VEC P) override {
+    virtual VEC3 get_norm(VEC3 P) override {
         return -norm;
     }
     virtual COL get_color() override {
@@ -648,7 +637,7 @@ public:
 /// </summary>
 class WallObj : public RectangleObj {
 public:
-    WallObj(VEC Point_1, VEC Point_2, COL c, double spec, double refl) : RectangleObj(
+    WallObj(VEC3 Point_1, VEC3 Point_2, COL c, double spec, double refl) : RectangleObj(
         Point_1,
         Point_1 + ((Point_2 - Point_1) - (UP * (Point_2 - Point_1)) * UP),
         Point_1 + (UP * (Point_2 - Point_1)) * UP,
@@ -675,8 +664,8 @@ class Render final {
 public:
     // render camera motion parameters
     double Pi = 3.1415926536;
-    VEC O = { 0, 1, 0 };                 // Это в общем точка, из которой лучи испускаются
-    VEC DIR = normalize({ 0, 0, 1 });  // Looking direction
+    VEC3 O = { 0, 1, 0 };                 // Это в общем точка, из которой лучи испускаются
+    VEC3 DIR = normalize({ 0, 0, 1 });  // Looking direction
     double step = 0.5;                   // how much you will move // for debug, all logic must be rewrite
     double angle = 0.005;                // how much you rotate
 
@@ -708,11 +697,11 @@ public:
         lights.push_back(*object);
     }
 
-    void set_position(VEC v) {
+    void set_position(VEC3 v) {
         O = v;
     }
 
-    void set_direction(VEC v) {
+    void set_direction(VEC3 v) {
         DIR = normalize(v);
     }
     
@@ -806,7 +795,7 @@ public:
 #ifdef clock_1
         clock_t start = clock();
 #endif
-        COL c; VEC D;
+        COL c; VEC3 D;
         int i; int j;
         RECT l;
 
@@ -852,8 +841,8 @@ public:
         GetWindowRect(hWnd, rect);
         int delta_y = point->x - (rect->right + rect->left) / 2;
         int delta_x = point->y - (rect->bottom + rect->top) / 2;
-        if (abs(DIR[0]) < abs(DIR[2])) {
-            if (DIR[2] > 0) {
+        if (abs(DIR.x) < abs(DIR.z)) {
+            if (DIR.z > 0) {
                 DIR = normalize(xRotate(delta_x * angle, DIR));
             }
             else {
@@ -861,7 +850,7 @@ public:
             }
         }
         else {
-            if (DIR[0] > 0) {
+            if (DIR.x > 0) {
                 DIR = normalize(zRotate(-delta_x * angle, DIR));
             }
             else {
@@ -874,7 +863,7 @@ public:
         SetCursorPos((rect->right + rect->left) / 2, (rect->bottom + rect->top) / 2);
     }
 
-    void ClosestIntersection(VEC O, VEC V, double t_min, double t_max, GenericObject*& closest_sphere, double& closest_t) {
+    void ClosestIntersection(VEC3 O, VEC3 V, double t_min, double t_max, GenericObject*& closest_sphere, double& closest_t) {
         for (int j = 0; j < spheres.size(); j++) {
             auto Sphere = spheres[j];
             double t;
@@ -893,7 +882,7 @@ public:
     /// <param name="V - vector from the P to the source of ray (point O)"></param>
     /// <param name="s - specularity of the object (матовость)"></param>
     /// <returns></returns>
-    double ComputeLight(VEC P, VEC N, VEC V, double s) {
+    double ComputeLight(VEC3 P, VEC3 N, VEC3 V, double s) {
         // intensity of the initial color, after computing light
         double i = 0.0;
 
@@ -903,7 +892,7 @@ public:
                 i += Light.get_intensity();
             }
             else {
-                VEC L;                                                                     // vector to the light
+                VEC3 L;                                                                     // vector to the light
                 if (Light.get_type() == 'p') {                                             // FIXIT (refactor Light to be inheritance
                     L = Light.get_d() - P;
                 }
@@ -927,7 +916,7 @@ public:
                 }
 
                 if (s != -1) {
-                    VEC R = ReflectRay(L, N);
+                    VEC3 R = ReflectRay(L, N);
                     double r_dot_v = (R * V);
                     if ((r_dot_v > 0) && (R*R != 0) && (V*V != 0)) {
                         i += Light.get_intensity() * std::pow(r_dot_v / (abs(R) * abs(V)), s);// this is expensive FIXIT
@@ -939,7 +928,7 @@ public:
         return i < 1 ? i : 1;
     }
 
-    COL Trace(VEC O, VEC V, double t_min, double t_max, int depth) {
+    COL Trace(VEC3 O, VEC3 V, double t_min, double t_max, int depth) {
         double closest_t = positive_inf;
         GenericObject* closest_sphere = nullptr;
 
@@ -953,8 +942,8 @@ public:
             return BG_C;
         }
 
-        VEC P = O + closest_t * V;
-        VEC N = closest_sphere->get_norm(P);
+        VEC3 P = O + closest_t * V;
+        VEC3 N = closest_sphere->get_norm(P);
 
         if (abs(N) != 0) { N = normalize(N); }
 
