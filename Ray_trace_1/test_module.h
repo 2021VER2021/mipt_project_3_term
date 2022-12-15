@@ -11,8 +11,8 @@
 int const MAX_THREADS = 3;
 #endif
 
-int const WIDTH = 200;
-int const HEIGHT = 200;
+int const WIDTH = 400;
+int const HEIGHT = 400;
 
 int n1 = WIDTH;  //  rename?
 int n2 = HEIGHT;
@@ -590,14 +590,13 @@ public:
         std::swap(this->specular, tmp.specular);
         return *this;
     }
-    virtual void TriIntersections(VEC3& O, VEC3& V, double& t_min, double& t_max, VEC3&& e1, VEC3&& e2, double& closest_t) {
+    void TriIntersections(VEC3& O, VEC3& V, double& t_min, double& t_max, VEC3&& e1, VEC3&& e2, VEC3& point, double& closest_t) {
         VEC3 pvec = cross(V, e2);
         double det = (e1 * pvec);
         double t = positive_inf;
-        closest_t = positive_inf;
         if (!(det < epsilon && det > -epsilon)) {
             double inv_det = 1 / det;
-            VEC3 tvec = O - point_1;
+            VEC3 tvec = O - point;
             double u = (tvec * pvec) * inv_det;
             if (!(u < 0 || u > 1)) {
                 VEC3 qvec = cross(tvec, e1);
@@ -607,13 +606,15 @@ public:
                 }
             }
         }
-        if (((t >= t_min) && (t <= t_max)) and (t < closest_t)) {
+        if (((t >= t_min) && (t <= t_max)) && (t < closest_t)) {
             closest_t = t;
         }
     }
+
     virtual void Intercections(VEC3& O, VEC3& V, double& t_min, double& t_max, double& closest_t) override {
-        TriIntersections(O, V, t_min, t_max, point_1 - point_0, point_2 - point_0, closest_t);
-        TriIntersections(O, V, t_min, t_max, point_2 - point_1, point_3 - point_1, closest_t);
+        closest_t = positive_inf;
+        TriIntersections(O, V, t_min, t_max, point_1 - point_0, point_2 - point_0, point_0, closest_t);
+        TriIntersections(O, V, t_min, t_max, point_2 - point_1, point_3 - point_1, point_1, closest_t);
     }
 
     virtual VEC3 get_norm(VEC3 P) override {
@@ -864,9 +865,10 @@ public:
     }
 
     void ClosestIntersection(VEC3 O, VEC3 V, double t_min, double t_max, GenericObject*& closest_sphere, double& closest_t) {
+        double t;
+        GenericObject* Sphere;
         for (int j = 0; j < spheres.size(); j++) {
-            auto Sphere = spheres[j];
-            double t;
+            Sphere = spheres[j];
             Sphere->Intercections(O, V, t_min, t_max, t);  
             if (((t >= t_min) && (t <= t_max)) && (t < closest_t)) {
                 closest_t = t;
@@ -882,7 +884,7 @@ public:
     /// <param name="V - vector from the P to the source of ray (point O)"></param>
     /// <param name="s - specularity of the object (матовость)"></param>
     /// <returns></returns>
-    double ComputeLight(VEC3 P, VEC3 N, VEC3 V, double s) {
+    double ComputeLight(VEC3& P, VEC3& N, VEC3 V, double s) {
         // intensity of the initial color, after computing light
         double i = 0.0;
 

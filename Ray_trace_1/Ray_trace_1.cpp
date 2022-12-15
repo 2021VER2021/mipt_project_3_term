@@ -52,11 +52,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     r.set_obj(new SphereObj({ 0, 4.0, 13 }, 1.1, RED, 50, 0.02));
 
   //r.set_obj(new RectangleObj({ 0, 5, 10 }, { 0, 5, 11 }, { 1, 5, 10 }, { 1, 5, 11 }, {0, 200, 0}, 1, 0.1));
-    r.set_obj(new WallObj({ box_param, 0, box_param}, { box_param, 20, -box_param }, LightCoral, 10, 0.01));
-    r.set_obj(new WallObj({ box_param, 0, box_param }, { -box_param, 20, box_param }, LightCoral, 10, 0.01));
-    r.set_obj(new WallObj({-box_param, 0, -box_param }, { -box_param, 20, box_param }, LightCoral, 10, 0.01));
-    r.set_obj(new WallObj({-box_param, 0, -box_param }, { box_param, 20, -box_param }, LightCoral, 10, 0.01));
-    r.set_obj(new WallObj({-9, 1, box_param-0.01 },{9, 19, box_param-0.01 }, {20, 20, 20}, 10, 0.99));
+    r.set_obj(new WallObj({ box_param, 0, box_param}, { box_param, 10, -box_param }, LightCoral, 10, 0.01));
+    r.set_obj(new WallObj({ box_param, 0, box_param }, { -box_param, 10, box_param }, LightCoral, 10, 0.01));
+    r.set_obj(new WallObj({-box_param, 0, -box_param }, { -box_param, 10, box_param }, LightCoral, 10, 0.01));
+    r.set_obj(new WallObj({-box_param, 0, -box_param }, { box_param, 10, -box_param }, LightCoral, 10, 0.01));
+    r.set_obj(new WallObj({-9, 1, box_param-0.01 },{9, 9, box_param-0.01 }, {2, 2, 2}, 10, 0.95));
     //r.set_obj(new WallObj({ box_param - coridor_param, 0, box_param - coridor_param }, { box_param - coridor_param, 2, -box_param + coridor_param}, SadBROWN, 10, 0));
     //r.set_obj(new WallObj({ -box_param, 0, -box_param }, { box_param, 2, -box_param }, SadBROWN, 10, 0));
     //r.set_obj(new TriangleObj({0, 0, 0}, {0, 0, 2}, {-1, 3, 2}, RED, 1, 0));
