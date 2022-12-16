@@ -7,41 +7,74 @@
 //#include<amp.h>
 //#include <omp.h>
 
+// clock_1 used to measure time, while debuging
+//#define clock_1
+// OMP is the great CPU multithreading library, but 
+// we found no improvement in computation speed 
+//#define OMP
+// GRAM you can define to do some crazy metric, but computation speed will be ruined
+//#define GRAM
+
 #ifdef OMP
 int const MAX_THREADS = 3;
 #endif
 
-int const WIDTH = 400;
-int const HEIGHT = 400;
+//  number of pixels, for each (axe x and y)
+int const WIDTH = 1000;
+int const HEIGHT = 600;
 
-int n1 = WIDTH;  //  rename?
-int n2 = HEIGHT;
-int depth = 1;
-int pixel = n1 / WIDTH;
-double  d = 1;  // params of FOV and scaling screen // how does it work actually??
-double  w = d;  // params of FOV and scaling screen
-double h = (double)n2/n1 * d;  // params of FOV and scaling screen
+// Window size parameters
+int n1 = WIDTH;         
+int n2 = HEIGHT;  
+
+// max number of reflections, for each ray
+int depth = 1;          
+
+// How much pixels will be in one game pixel, per one side
+int pixel = n1 / WIDTH; 
+
+//params of FOVand scaling screen 
+double  d = 1;                 
+double  w = d;                
+double h = (double)n2/n1 * d; 
+
+// distance, after which we consider, that ray doesn't intersect any object
 double const positive_inf = 10000000;
+
+// parameter for intersection functions, need to define, when we intersect object
 double epsilon = 0.00001;
+
+// the distance, from which we will cast rays when calculating shadows
 double ray_epsilon = 0.01;
 
-struct vector3 { // implementation of 3D vector
+// implementation of 3D vector
+struct vector3 { 
     double x;
     double y;
     double z;
 };
-using VEC3 = vector3; // symbol for real 3D space vector
-using VEC = std::array<double, 3>; // math vector (eg in matrices)
+
+// symbol for real 3D space vector
+using VEC3 = vector3; 
+
+// math vector (eg in matrices)
+using VEC = std::array<double, 3>; 
+
+// data type, using to present each channel colour data
 using COL_t = BYTE;
+
+// container for RGB colour data
 using COL = std::array<COL_t, 3>;
+
+// class MATRIX using to rotate camera
 using MATR = std::array<VEC, 3>;
 
+#ifdef clock_1
 clock_t s_1 = 0;
 clock_t e_1 = 0;
+#endif
 
-/// <summary>
-/// Gram moment
-/// </summary>
+// Gram matrix, we can use it, to change metric
 MATR Gram = 
 {
     std::array<double, 3>{1, 0, 0},
@@ -49,23 +82,28 @@ MATR Gram =
     std::array<double, 3>{0, 0, 1}
 };
 
-// These are colors, RGB format
-const COL SadBROWN = {139, 69, 13};
-const COL GreenYellow = {86, 127, 23};
-const COL RED = { 250, 0, 0 };    // Map? maybe
+// colors in RGB format using container COL
+const COL SADBROWN = {139, 69, 13};
+const COL GREENYELLOW = {86, 127, 23};
+const COL RED = { 250, 0, 0 };    
 const COL BLUE = { 0, 0, 250 };
 const COL YELLOW = { 250, 250, 0 };
-const COL BG_C = { 0, 191, 255 };
-const COL LightCoral = { 240, 128, 128 };
+const COL LIGHTCORAL = { 240, 128, 128 };
+const COL TERRACOTBROWN = { 78, 59, 49 };
+
+// if ray reachs positive_inf, we will color pixel in this color
+COL BG_C = { 0, 191, 255 };
 
 VEC3 operator - (VEC3 v1, VEC3 v2) {
     VEC3 V = { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
     return V;
 }
+
 VEC3 operator - (VEC3 v1) {
     VEC3 V = { -v1.x, -v1.y, -v1.z };
     return V;
 }
+
 VEC3 operator + (VEC3 v1, VEC3 v2) {
     return v1 - (-v2);
 }
@@ -95,6 +133,7 @@ MATR operator * (MATR m1, MATR m2) {
     };
     return m3;
 }
+
 #ifdef OMP
 double operator * (VEC3 v1, VEC3 v2) {
     double answer = 0;
@@ -106,11 +145,15 @@ double operator * (VEC3 v1, VEC3 v2) {
     return answer;
 }
 #else
+
 double operator * (VEC3 v1, VEC3 v2) {
-    //v2 = Gram * v2;  // epic boost
+#ifdef GRAM
+    v2 = Gram * v2;  // Gram matrix usage
+#endif
     double answer = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
     return answer;
 }
+
 #endif
 
 VEC3 operator * (double v1, VEC3 v2) {
@@ -127,32 +170,56 @@ COL operator * (double c1, COL c2) {
 COL operator + (COL c1, COL c2) {
     return { static_cast<COL_t>(c1[0] + c2[0]), static_cast<COL_t>(c1[1] + c2[1]), static_cast<COL_t>(c1[2] + c2[2]) };
 }
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="v1 - input vector"></param>
+/// <returns> length of vector </returns>
 double abs(VEC3 &v1) {
     double V = v1 * v1;
     return std::sqrt(V);
 }
 
+/// <summary>
+/// 
+/// </summary>
+/// <param name="v1 - first vector"></param>
+/// <param name="v2 - second vector"></param>
+/// <returns> cross product of v1 and v2 </returns>
 VEC3 cross(VEC3 v1, VEC3 v2) {
     VEC3 V = { v1.y * v2.z - v1.z * v2.y, v2.x * v1.z - v1.x * v2.z, v1.x * v2.y - v2.x * v1.y };
     return V;
 }
 
+/// <summary>
+/// 
+/// </summary>
+/// <param name="v"> - input vector, length != 0 </param>
+/// <returns> normalized vector, length = 1</returns>
 VEC3 normalize(VEC3& v) {
     return (1 / abs(v)) * v;
 }
+
+/// <summary>
+/// 
+/// </summary>
+/// <param name="v"> - input vector, length != 0 </param>
+/// <returns> normalized vector, length = 1</returns>
 VEC3 normalize(VEC3&& v) {
     VEC3 v1 = (1 / abs(v)) * v;
     return v1;
 }
-// Important part of orientation
+
+// Important part of orientation, vector pointing up
 VEC3 UP = normalize({ 0, 1, 0 });
 
 /// <summary>
 ///  Rotation around x axe
 /// </summary>
-/// <param name="angle"></param>
-/// <param name="v"></param>
-/// <returns></returns>
+/// <param name="angle, radians"></param>
+/// <param name="v - input vector"></param>
+/// <returns> vector v, but rotated by angle radian around x </returns>
 VEC3 xRotate(double angle, VEC3 v) {   // FIXIT
     MATR xRotation = { 
         VEC{1, 0, 0},
@@ -160,6 +227,13 @@ VEC3 xRotate(double angle, VEC3 v) {   // FIXIT
         VEC{ 0, std::sin(angle), std::cos(angle)}};
     return xRotation * v;
 }
+
+/// <summary>
+///  Rotation around y axe
+/// </summary>
+/// <param name="angle, radians"></param>
+/// <param name="v - input vector"></param>
+/// <returns> vector v, but rotated by angle radianm around y </returns>
 VEC3 yRotate(double angle, VEC3 v) {    // FIXIT
     MATR yRotation = { 
         VEC{std::cos(angle), 0, std::sin(angle)},
@@ -168,6 +242,12 @@ VEC3 yRotate(double angle, VEC3 v) {    // FIXIT
     return yRotation * v;
 }
 
+/// <summary>
+///  Rotation around z axe
+/// </summary>
+/// <param name="angle, radians"></param>
+/// <param name="v - input vector"></param>
+/// <returns> vector v, but rotated by angle radian around z </returns>
 VEC3 zRotate(double angle, VEC3 v) {    // FIXIT
     MATR zRotation = {
         VEC{std::cos(angle), -std::sin(angle), 0},
@@ -175,6 +255,13 @@ VEC3 zRotate(double angle, VEC3 v) {    // FIXIT
         VEC{0, 0, 1} };
     return zRotation * v;
 }
+
+/// <summary>
+///  Rotation around x axe, and y axe
+/// </summary>
+/// <param name="angle, radians"></param>
+/// <param name="v - input vector"></param>
+/// <returns> vector v, but rotated by angle_x and angle_y around x and y </returns>
 VEC3 xyRotate(double angle_x, double angle_y, VEC3 v) { // FIXIT
     MATR xRotation = {
         VEC{1, 0, 0},
@@ -188,19 +275,33 @@ VEC3 xyRotate(double angle_x, double angle_y, VEC3 v) { // FIXIT
 }
 
 /// <summary>
-    ///  Helpful function, to calculate reflections
-    /// </summary>
-    /// <param name="R"></param>
-    /// <param name="N"></param>
-    /// <returns></returns>
+///  Helpful function, to calculate reflections
+/// </summary>
+/// <param name="R - falling ray"></param>
+/// <param name="N - normal vector to surface"></param>
+/// <returns> reflected ray </returns>
 VEC3 ReflectRay(VEC3& R, VEC3& N) {
     return  2 * (R * N) * N - R;
 }
 
+/// <summary>
+///  Helpful function, to calculate reflections
+/// </summary>
+/// <param name="R - falling ray"></param>
+/// <param name="N - normal vector to surface"></param>
+/// <returns> reflected ray </returns>
 VEC3 ReflectRay(VEC3&& R, VEC3& N) {
     return  2 * (R * N) * N - R;
 }
 
+/// <summary>
+/// Actualy, this is a kind of magic, why
+/// this strange method of setting rectangles on 
+/// canvas is the best in performance
+/// </summary>
+/// <param name="hdc - something, that allow you to use graphics"></param>
+/// <param name="rect - reference to the RECT, wich you want to paint"></param>
+/// <param name="colour - RGB color of the rect"></param>
 void PaintRect(HDC hdc, RECT* rect, COLORREF colour)
 {
     COLORREF oldcr = SetBkColor(hdc, colour);
@@ -208,22 +309,7 @@ void PaintRect(HDC hdc, RECT* rect, COLORREF colour)
     SetBkColor(hdc, oldcr);
 }
 
-/// <summary>
-/// Class for collecting all pixels data, maybe useless
-/// </summary>
-class Picture {
-public:
-    COL* arr;
-    void set_color(int& i, int& j, COL& c) {
-        arr[i + j * n1] = c;
-    }
-    COL get_color(int& i, int& j) {
-        return arr[i + j * n1];
-    }
-    Picture() { arr = new COL[n1 * n2]; }
-    ~Picture() { delete[] arr; }
-};
-
+/// FIXIT?
 /// <summary>
 /// This class for discribe light
 /// RAII done, but Inheritance...
@@ -305,8 +391,12 @@ public:
 class GenericObject {
 protected:
     COL color;
-    double reflective; // how it matt or glossy (-1 - matt, 0-10000 - glossy)
-    double specular;   // reflections on/off and how effective
+
+    // how it matt or glossy (-1 - matt, 0-10000 - glossy)
+    double reflective; 
+
+    // reflections on/off and how effective
+    double specular;  
 public:
     GenericObject(COL& c, double& refl, double& spec) {
         color = c;
@@ -336,6 +426,10 @@ public:
     virtual COL get_color() = 0;
 };
 
+/// <summary>
+/// Object, that discribe spheres 
+/// RAII done
+/// </summary>
 class SphereObj : public GenericObject {
 protected:
     VEC3 center;
@@ -373,6 +467,7 @@ public:
         std::swap(this->specular, tmp.specular);
         return *this;
     }
+
     /// <summary>
     /// moving assignment
     /// </summary>
@@ -434,9 +529,19 @@ public:
     }
 };
 
+class MovingSpheres : public SphereObj {
+    // TODO : realization
+};
+
+/// <summary>
+/// Object, that discribe planes
+/// RAII done
+/// </summary>
 class PlaneObj : public GenericObject {
 protected:
     VEC3 norm;
+
+    // the point, that belong the plane
     VEC3 param;
 public:
     PlaneObj(VEC3 norm, VEC3 param, COL c, double spec, double refl) : GenericObject(c, refl, spec) {
@@ -444,9 +549,18 @@ public:
         PlaneObj::param = param;
     }
     PlaneObj(PlaneObj const& t) : PlaneObj(t.norm, t.param, t.color, t.specular, t.reflective) {};
+    PlaneObj(PlaneObj&& t) : GenericObject(t) {
+        norm = t.norm;
+        param = t.param;
+    }
     ~PlaneObj() {
     }
 
+    /// <summary>
+    /// Copy assignment
+    /// </summary>
+    /// <param name="s"></param>
+    /// <returns></returns>
     PlaneObj& operator = (PlaneObj const& s) {
         PlaneObj tmp(s);
         std::swap(this->norm, tmp.norm);
@@ -454,6 +568,20 @@ public:
         std::swap(this->color, tmp.color);
         std::swap(this->reflective, tmp.reflective);
         std::swap(this->specular, tmp.specular);
+        return *this;
+    }
+    /// <summary>
+    /// moving assignment
+    /// </summary>
+    /// <param name="t"></param>
+    /// <returns></returns>
+    PlaneObj& operator = (PlaneObj&& t) {
+        PlaneObj tmp(std::move(t));
+        std::swap(this->param, t.param);
+        std::swap(this->norm, t.norm);
+        std::swap(this->color, t.color);
+        std::swap(this->reflective, t.reflective);
+        std::swap(this->specular, t.specular);
         return *this;
     }
 
@@ -487,6 +615,9 @@ public:
     }
 };
 
+/// <summary>
+/// RAII DONE
+/// </summary>
 class TriangleObj : public GenericObject {
 protected:
     VEC3 norm;
@@ -501,9 +632,20 @@ public:
         point_3 = Point_3;
     }
     TriangleObj(TriangleObj const& t) : TriangleObj(t.point_1, t.point_2, t.point_3, t.color, t.specular, t.reflective) {};
+    TriangleObj(TriangleObj&& t) : GenericObject(t) {
+        point_1 = t.point_1;
+        point_2 = t.point_2;
+        point_2 = t.point_3;
+        norm = t.norm;
+    }
     ~TriangleObj() {
     }
 
+    /// <summary>
+    /// Copy assignment
+    /// </summary>
+    /// <param name="s"></param>
+    /// <returns></returns>
     TriangleObj& operator = (TriangleObj const& s) {
         TriangleObj tmp(s);
         std::swap(this->norm, tmp.norm);
@@ -513,6 +655,23 @@ public:
         std::swap(this->color, tmp.color);
         std::swap(this->reflective, tmp.reflective);
         std::swap(this->specular, tmp.specular);
+        return *this;
+    }
+
+    /// <summary>
+    /// moving assignment
+    /// </summary>
+    /// <param name="t"></param>
+    /// <returns></returns>
+    TriangleObj& operator = (TriangleObj&& t) {
+        TriangleObj tmp(std::move(t));
+        std::swap(this->point_1, t.point_1);
+        std::swap(this->point_2, t.point_2);
+        std::swap(this->point_3, t.point_3);
+        std::swap(this->norm, t.norm);
+        std::swap(this->color, t.color);
+        std::swap(this->reflective, t.reflective);
+        std::swap(this->specular, t.specular);
         return *this;
     }
 
@@ -553,7 +712,9 @@ public:
         return GenericObject::specular;
     }
 };
-
+/// <summary>
+///  RAII DONE
+/// </summary>
 class RectangleObj : public GenericObject {
 protected:
     VEC3 point_0;
@@ -576,8 +737,20 @@ public:
         norm = normalize(cross(Point_2 - Point_1, Point_3 - Point_1));
     }
     RectangleObj(RectangleObj const& t) : RectangleObj(t.point_0, t.point_1, t.point_2, t.point_3, t.color, t.specular, t.reflective) {};
-    ~RectangleObj() {
+    RectangleObj(RectangleObj&& t) : RectangleObj(t) {
+        point_0 = t.point_0;
+        point_1 = t.point_1;
+        point_2 = t.point_2;
+        point_3 = t.point_3;
+        norm = t.norm;
     }
+    ~RectangleObj() {}
+
+    /// <summary>
+    /// Copy assignment
+    /// </summary>
+    /// <param name="s"></param>
+    /// <returns></returns>
     RectangleObj& operator = (RectangleObj const& s) {
         RectangleObj tmp(s);
         std::swap(this->norm, tmp.norm);
@@ -590,6 +763,25 @@ public:
         std::swap(this->specular, tmp.specular);
         return *this;
     }
+
+    /// <summary>
+    /// moving assignment
+    /// </summary>
+    /// <param name="t"></param>
+    /// <returns></returns>
+    RectangleObj& operator = (RectangleObj&& t) {
+        RectangleObj tmp(std::move(t));
+        std::swap(this->point_0, t.point_0);
+        std::swap(this->point_1, t.point_1);
+        std::swap(this->point_2, t.point_2);
+        std::swap(this->point_3, t.point_3);
+        std::swap(this->norm, t.norm);
+        std::swap(this->color, t.color);
+        std::swap(this->reflective, t.reflective);
+        std::swap(this->specular, t.specular);
+        return *this;
+    }
+
     void TriIntersections(VEC3& O, VEC3& V, double& t_min, double& t_max, VEC3&& e1, VEC3&& e2, VEC3& point, double& closest_t) {
         VEC3 pvec = cross(V, e2);
         double det = (e1 * pvec);
@@ -635,6 +827,7 @@ public:
 /// -----2
 /// |    |
 /// 1-----
+/// RAII done
 /// </summary>
 class WallObj : public RectangleObj {
 public:
@@ -645,6 +838,20 @@ public:
         Point_2,
         c, spec, refl) {}
     WallObj(WallObj const& t) : RectangleObj(t.point_0, t.point_1, t.point_2, t.point_3, t.color, t.specular, t.reflective) {};
+ 
+   WallObj(WallObj&& t) : WallObj(t) {
+        point_0 = t.point_0;
+        point_1 = t.point_1;
+        point_2 = t.point_2;
+        point_3 = t.point_3;
+        norm = t.norm;
+    }
+
+    /// <summary>
+    /// Copy assignment
+    /// </summary>
+    /// <param name="s"></param>
+    /// <returns></returns>
     WallObj& operator = (WallObj const& s) {
         WallObj tmp(s);
         std::swap(this->norm, tmp.norm);
@@ -655,6 +862,24 @@ public:
         std::swap(this->color, tmp.color);
         std::swap(this->reflective, tmp.reflective);
         std::swap(this->specular, tmp.specular);
+        return *this;
+    }
+
+    /// <summary>
+    /// moving assignment
+    /// </summary>
+    /// <param name="t"></param>
+    /// <returns></returns>
+    WallObj& operator = (WallObj&& t) {
+        WallObj tmp(std::move(t));
+        std::swap(this->point_0, t.point_0);
+        std::swap(this->point_1, t.point_1);
+        std::swap(this->point_2, t.point_2);
+        std::swap(this->point_3, t.point_3);
+        std::swap(this->norm, t.norm);
+        std::swap(this->color, t.color);
+        std::swap(this->reflective, t.reflective);
+        std::swap(this->specular, t.specular);
         return *this;
     }
 };

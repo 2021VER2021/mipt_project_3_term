@@ -1,10 +1,9 @@
 ﻿// Ray_trace_1.cpp : Определяет точку входа для приложения.
 
 #define _SILENCE_AMP_DEPRECATION_WARNINGS
-//#define clock_1
-//#define OMP
 #define debug
 #define MAX_LOADSTRING 100
+#define PICTURE 10
 
 #include "Ray_trace_1.h"
 #include "test_module.h"
@@ -22,6 +21,13 @@ std::vector<COL_t> array_pixel(n1*n2*3);
 concurrency::array<COL_t, 2> array_pixel_gpu(n1* n2, 3, array_pixel.begin(), array_pixel.end());
 //concurrency::array_view<COL_t, 2> array_pixel_gpu(n1 * n2, 3, array_pixel);
 #endif 
+
+#if PICTURE == 10
+// TODO : realization
+void draw_planets() {
+    
+}
+#endif
 
 /// <summary>
 /// main function of the program
@@ -41,31 +47,49 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(lpCmdLine);
 
     r = Render(hInstance); // Рендер (инициализировали)
-    r.set_position({ -8, 1, -8 });
+#if PICTURE == 404
+    depth = 5;
+    r.set_position({ -8, 2, -8 });
     r.set_direction({ 1, 0, 4});
-  // set some objects FIXIT( unique_ptr )
-  //r.set_obj(new SphereObj({ 0, 0, 15 }, 2, { 0, 255, 0 }, 1, 0.1));
-    r.set_obj(new SphereObj({ 0.7, 1, 13 }, 1.0, GreenYellow, 5, 0.2));  //FIXIT something going wrong here(
-    r.set_obj(new SphereObj({ -0.7, 1, 13 }, 1.0, GreenYellow, 5, 0.2));
-    r.set_obj(new SphereObj({ 0, 2.0, 13 }, 1.0, GreenYellow, 5, 0.2));
-    r.set_obj(new SphereObj({ 0, 3.0, 13 }, 1.0, GreenYellow, 5, 0.2));
-    r.set_obj(new SphereObj({ 0, 4.0, 13 }, 1.1, RED, 3, 0.02));
-
-  //r.set_obj(new RectangleObj({ 0, 5, 10 }, { 0, 5, 11 }, { 1, 5, 10 }, { 1, 5, 11 }, {0, 200, 0}, 1, 0.1));
-    r.set_obj(new WallObj({ box_param, 0, box_param}, { box_param, 10, -box_param }, LightCoral, 10, 0.01));
-    r.set_obj(new WallObj({ box_param, 0, box_param }, { -box_param, 10, box_param }, LightCoral, 10, 0.01));
-    r.set_obj(new WallObj({-box_param, 0, -box_param }, { -box_param, 10, box_param }, LightCoral, 10, 0.01));
-    r.set_obj(new WallObj({-box_param, 0, -box_param }, { box_param, 10, -box_param }, LightCoral, 10, 0.01));
+    r.set_obj(new SphereObj({ 0.7, 1, 13 }, 1.0, GREENYELLOW, 5, 0.2));
+    r.set_obj(new SphereObj({ -0.7, 1, 13 }, 1.0, GREENYELLOW, 5, 0.2));
+    r.set_obj(new SphereObj({ 0, 2.0, 13 }, 1.0, GREENYELLOW, 5, 0.2));
+    r.set_obj(new SphereObj({ 0, 3.0, 13 }, 1.0, GREENYELLOW, 5, 0.2));
+    r.set_obj(new SphereObj({ 0, 4.0, 13 }, 1.1, RED, 100, 0.02));
+    r.set_obj(new WallObj({ box_param, 0, box_param}, { box_param, 10, -box_param }, LIGHTCORAL, 10, 0.01));
+    r.set_obj(new WallObj({ box_param, 0, box_param }, { -box_param, 10, box_param }, LIGHTCORAL, 10, 0.01));
+    r.set_obj(new WallObj({-box_param, 0, -box_param }, { -box_param, 10, box_param }, LIGHTCORAL, 10, 0.01));
+    r.set_obj(new WallObj({-box_param, 0, -box_param }, { box_param, 10, -box_param }, LIGHTCORAL, 10, 0.01));
     r.set_obj(new WallObj({-9, 1, box_param-0.01 },{9, 9, box_param-0.01 }, {2, 2, 2}, 10, 0.95));
-    //r.set_obj(new WallObj({ box_param - coridor_param, 0, box_param - coridor_param }, { box_param - coridor_param, 2, -box_param + coridor_param}, SadBROWN, 10, 0));
-    //r.set_obj(new WallObj({ -box_param, 0, -box_param }, { box_param, 2, -box_param }, SadBROWN, 10, 0));
-    //r.set_obj(new TriangleObj({0, 0, 0}, {0, 0, 2}, {-1, 3, 2}, RED, 1, 0));
-    //r.set_obj(new TriangleObj({0, 0, 0}, {0, 0, 2}, {-1, 3, 2}, RED, 1, 0)); 
     r.set_obj(new PlaneObj({ 0, -1, 0 }, { 0, 0, 0}, { 200, 210, 210 }, 10, 0));
     r.set_light(new LightObj('a', 0.5));
     r.set_light(new LightObj({ 0, 5, -1 }, 'd', 0.3));
-    //r.set_light(new LightObj({ 0, 1, 0 }, 'p', 0.2));
-
+    
+#endif
+#if PICTURE == 1
+    BG_C = { 10, 30, 140 };
+    depth = 5;
+    r.set_position({ -40, 2, 0 });
+    r.set_direction({ 3, 0, 1 });
+    r.set_obj(new PlaneObj({ 0, -1, 0 }, { 0, -1, 0 }, SADBROWN, 100, 0.01));
+    r.set_obj(new PlaneObj({ 0, 0, -1 }, { 0, 0, 20 }, { 0, 0, 0 }, 100, 0.95));
+    r.set_light(new LightObj({ -10, 10, -10 }, 'd', 0.4));
+    r.set_light(new LightObj('a', 0.6));
+    r.set_obj(new SphereObj({ 0, 5.0, 13 }, 4.0, LIGHTCORAL, -1, 0.1));
+#endif
+#if PICTURE == 10
+    BG_C = { 0, 0, 0 };
+    depth = 5;
+    r.set_position({ 0, 4, -20 });
+    r.set_direction({ 0, -1, 4 });
+    r.set_obj(new SphereObj({ 0, 0, 0 }, 4.0, { 200, 200, 0 }, -1, 0));
+    r.set_obj(new SphereObj({ 6, 0, 0 }, 0.8, { 0, 200, 0 }, 100, 0.1));
+    r.set_obj(new SphereObj({ -7, 0, -1 }, 1.5, LIGHTCORAL, 100, 0.5));
+    r.set_obj(new SphereObj({ -4, 0.4, -9 }, 0.5, { 200, 180, 200 }, 10, 0.1));
+    r.set_obj(new SphereObj({ 8, 0.8, 10 }, 0.5, { 0, 180, 200 }, 10, 0.1));
+    r.set_light(new LightObj('a', 0.6));
+    r.set_light(new LightObj({ -10, 10, -10 }, 'd', 0.4));
+#endif
 #ifdef OMP
     omp_set_num_threads(MAX_THREADS);
 #endif
