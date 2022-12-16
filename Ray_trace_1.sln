@@ -5,6 +5,11 @@ VisualStudioVersion = 17.3.32825.248
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Ray_trace_1", "Ray_trace_1\Ray_trace_1.vcxproj", "{0E44F082-1034-4650-AF15-4F61435DB434}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{15DB29DC-DC52-4E1C-A742-7D750E5C14E4}"
+	ProjectSection(SolutionItems) = preProject
+		Ray_trace_1\test_module.h = Ray_trace_1\test_module.h
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
