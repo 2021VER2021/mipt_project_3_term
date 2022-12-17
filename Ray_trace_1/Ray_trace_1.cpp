@@ -2,16 +2,19 @@
 
 #define _SILENCE_AMP_DEPRECATION_WARNINGS
 #define debug
-#define MAX_LOADSTRING 100
 #define PICTURE 10
 
+#include "Resource.h"
 #include "Ray_trace_1.h"
-#include "test_module.h"
+#include "render.h"
+#include "model.h"
 #include <time.h>
+#include <math.h>
+#include <mutex>
 
 LRESULT CALLBACK  WndProc(HWND, UINT, WPARAM, LPARAM);
 
-Render r; // Рендер ( это кринж )
+Render r; // Рендер
 
 double box_param = 20;
 double coridor_param = 2;
@@ -22,12 +25,44 @@ concurrency::array<COL_t, 2> array_pixel_gpu(n1* n2, 3, array_pixel.begin(), arr
 //concurrency::array_view<COL_t, 2> array_pixel_gpu(n1 * n2, 3, array_pixel);
 #endif 
 
+class Busy {
+    std::atomic<bool> busy;
+public:
+    Busy() : busy(false) {};
+    void operator()() {
+        while (busy.load()) {}
+        busy.store(true);
+    }
+    void free() {
+        busy.store(false);
+    }
+};
+Busy BusySpheres;
 #if PICTURE == 10
-// TODO : realization
-void draw_planets() {
-    
+void move_planets(Render r, double dt) {
+    const double W = 0.02;
+    BusySpheres();
+    SphereObj* s = dynamic_cast<SphereObj*>(r.get_object(1));
+    for (int i = 2; s != nullptr; ++i) {
+        VEC3 p = s->get_center();
+        s->set_center(yRotate(W * dt, p));
+        s = dynamic_cast<SphereObj*>(r.get_object(i));
+    }
+    BusySpheres.free();
 }
+Model model(move_planets);
+#else
+Model model;
 #endif
+
+//void computations(Model model, Render r){
+//    while (model.running) {
+//        model.step(r);
+//        PostMessage(HWND_BROADCAST, WM_PAINT, 0, 0);
+//        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+//    }
+//}
+
 
 /// <summary>
 /// main function of the program
@@ -80,8 +115,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 #if PICTURE == 10
     BG_C = { 0, 0, 0 };
     depth = 5;
-    r.set_position({ 0, 4, -20 });
-    r.set_direction({ 0, -1, 4 });
+    r.set_position({ -5, 4, -20 });
+    r.set_direction({ 1, -1, 4 });
     r.set_obj(new SphereObj({ 0, 0, 0 }, 4.0, { 200, 200, 0 }, -1, 0));
     r.set_obj(new SphereObj({ 6, 0, 0 }, 0.8, { 0, 200, 0 }, 100, 0.1));
     r.set_obj(new SphereObj({ -7, 0, -1 }, 1.5, LIGHTCORAL, 100, 0.5));
@@ -95,7 +130,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 #endif
 
     // Выполнить инициализацию приложения:
-    r.MyRegisterClass(&WndProc); // так нужно, передаём ссылку на функцию, чего таково
+    r.MyRegisterClass(&WndProc); // так нужно, передаём ссылку на функцию
     r.InitInstance(nCmdShow);
 
     // переменная для сообщений, и переменная для (чего?)
@@ -103,6 +138,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     MSG msg;
 
     // Цикл основного сообщения 
+
+    std::thread model_t = model.start(r);
     while (GetMessage(&msg, nullptr, 0, 0))
     {
         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
@@ -111,7 +148,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             DispatchMessage(&msg); // диспетчеризация событий
         }
     }
-    r.delete_spheres();
+    model.stop();
+    model_t.join();
+    r.delete_objects();
     return (int) msg.wParam;
 }
 
@@ -238,18 +277,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
 
     }
-    /*
+    
     case WM_MOUSEMOVE:
     {
         r.CameraRotate(hWnd);
-
         InvalidateRect(hWnd, NULL, NULL);
     }
     break;
-    */
+    case MODEL_SEND:
+    {
+        model.send_wnd(hWnd);
+    }
+    break;
     case WM_PAINT:
     {
+        BusySpheres();
         r.DrawScene(hWnd);
+        BusySpheres.free();
     }
     break;
     case WM_DESTROY:

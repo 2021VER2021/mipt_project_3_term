@@ -30,7 +30,13 @@
     <ClInclude Include="ray_trace.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="test_module.h">
+    <ClInclude Include="objects.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="model.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="render.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>
