@@ -128,11 +128,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="framework.h" />
+    <ClInclude Include="model.h" />
     <ClInclude Include="ray_trace.h" />
     <ClInclude Include="Ray_trace_1.h" />
+    <ClInclude Include="render.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
-    <ClInclude Include="test_module.h" />
+    <ClInclude Include="objects.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Ray_trace_1.cpp" />
