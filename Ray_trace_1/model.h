@@ -14,9 +14,9 @@ class Model {
 	std::atomic<bool> RUNNING;
 	HWND hWnd = NULL;
 public:
-
 	Model() : Model(do_nothing) {}
 	Model(void (&f)(Render, double)) : compute(f) {};
+	~Model(){}
 
 	void send_wnd(HWND hwnd) {
 		hWnd = hwnd;
@@ -26,7 +26,7 @@ public:
 		while (RUNNING.load()) {
 			step(r);
 			InvalidateRect(hWnd, NULL, NULL);
-			std::this_thread::sleep_for(std::chrono::milliseconds(20));
+			std::this_thread::sleep_for(std::chrono::milliseconds(30));
 		}
 	}
 
